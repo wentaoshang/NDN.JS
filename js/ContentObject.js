@@ -8,7 +8,7 @@ var ContentObject = function ContentObject(_name, _content, _signedInfo) {
 	this.name = null;
     } else if (typeof _name == 'string') {
 	this.name = new Name(_name);
-    } if (_name instanceof Name) {
+    } else if (_name instanceof Name) {
 	this.name = _name;
     } else
 	throw new Error('ContentObject: unknown name type');
@@ -62,9 +62,9 @@ ContentObject.prototype.sign = function (key, param) {
     rsa.readPrivateKeyFromPEMString(key.privateToPEM());
     var signer = new KJUR.crypto.Signature({"alg": "SHA256withRSA", "prov": "cryptojs/jsrsa"});
     signer.initSign(rsa);
-    signer.updateHex(n1);
-    signer.updateHex(n2);
-    signer.updateHex(n3);
+    signer.updateHex(DataUtils.toHex(n1));
+    signer.updateHex(DataUtils.toHex(n2));
+    signer.updateHex(DataUtils.toHex(n3));
     var hSig = signer.sign();
     
     this.signature = new Signature();
@@ -80,7 +80,7 @@ ContentObject.prototype.verify = function (/*Key*/ key) {
     var rsa = Key.readPublicDER(key.publicToDER());
     var signer = new KJUR.crypto.Signature({"alg": "SHA256withRSA", "prov": "cryptojs/jsrsa"});
     signer.initVerifyByPublicKey(rsa);
-    signer.updateHex(this.signedData);
+    signer.updateHex(DataUtils.toHex(this.signedData));
     var hSig = DataUtils.toHex(this.signature.signature);
     return signer.verify(hSig);
 };
@@ -99,7 +99,7 @@ ContentObject.prototype.encodeContent = function encodeContent(obj) {
 };
 
 ContentObject.prototype.saveSignedData = function (bytes) {
-    var sig = bytes.slice(this.startSIG, this.endSIG);
+    var sig = bytes.subarray(this.startSIG, this.endSIG);
     this.signedData = sig;
 };
 
@@ -267,11 +267,11 @@ var ContentType = {DATA:'DATA', ENCR:'ENCR', GONE:'GONE', KEY:'KEY/', LINK:'LINK
 
 var SignedInfo = function SignedInfo(_publisher, _timestamp, _type, _locator, _freshnessSeconds, _finalBlockID) {
     this.publisher = _publisher; //publisherPublicKeyDigest
-    this.timestamp=_timestamp; // CCN Time
-    this.type=_type; // ContentType
-    this.locator =_locator;//KeyLocator
-    this.freshnessSeconds =_freshnessSeconds; // Integer
-    this.finalBlockID=_finalBlockID; //byte array
+    this.timestamp = _timestamp; // CCN Time
+    this.type = _type; // ContentType
+    this.locator = _locator;//KeyLocator
+    this.freshnessSeconds = _freshnessSeconds; // Integer
+    this.finalBlockID = _finalBlockID; //byte array
 };
 
 /**
@@ -290,9 +290,9 @@ SignedInfo.prototype.setFields = function (key, param) {
 	throw new Error('Cannot set SignedInfo without key info.');
 
     this.publisher = new PublisherPublicKeyDigest(key.getKeyID());
-    
+
     this.timestamp = new CCNTime();
-	
+
     if (param == null) {
 	this.type = ContentType.DATA;
 	this.locator = new KeyLocator(key, KeyLocatorType.KEY);

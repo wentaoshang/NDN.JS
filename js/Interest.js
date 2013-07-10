@@ -131,7 +131,7 @@ Interest.prototype.to_xml = function () {
 	xml += this.publisherPublicKeyDigest.to_xml();
 
     if (null != this.exclude)
-	xml += this.exclude.to_xml(encoding);
+	xml += this.exclude.to_xml();
 
     if (null != this.childSelector)
 	xml += '<ChildSelector>' + this.childSelector + '</ChildSelector>';
@@ -143,8 +143,8 @@ Interest.prototype.to_xml = function () {
 	xml += '<Scope>' + this.scope + '</Scope>';
 
     if (null != this.interestLifetime)
-	xml += '<InterestLifetime ccnbencoding="' + encoding + 'Binary">' 
-	    + DataUtils.unsignedIntToBigEndian((this.interestLifetime / 1000.0) * 4096).toString(encoding).toUpperCase()
+	xml += '<InterestLifetime ccnbencoding="hexBinary">' 
+	    + DataUtils.toHex(DataUtils.unsignedIntToBigEndian((this.interestLifetime / 1000.0) * 4096)).toUpperCase()
 	    + '</InterestLifetime>';
     
     if (null != this.nonce)
@@ -162,10 +162,10 @@ Interest.prototype.encodeToBinary = function () {
 };
 
 /*
- * Return true if this.name.match(name) and the name conforms to the interest selectors.
+ * Return true if this.name.matches(name) and the name conforms to the interest selectors.
  */
 Interest.prototype.matches_name = function(/*Name*/ name) {
-    if (!this.name.match(name))
+    if (!this.name.isPrefixOf(name))
         return false;
     
     if (this.minSuffixComponents != null &&
@@ -204,6 +204,11 @@ var Exclude = function Exclude(_values) {
     // Check the type of the input
     for (var i = 0; i < this.values.length; i++) {
 	var component = this.values[i];
+	
+	// Exclude.ANY is special
+	if (component == Exclude.ANY)
+	    continue;
+	
 	if (typeof component == 'string')
 	    // Convert string to Buffer
 	    this.values[i] = Name.stringComponentToBuffer(component);

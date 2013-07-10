@@ -11,8 +11,8 @@ var LOG = 0;
  * {
  *   host: 'localhost', // If null, use getHostAndPort when connecting.
  *   port: 9696,
- *   onopen: function() { if (LOG > 3) console.log("NDN connection established."); }
- *   onclose: function() { if (LOG > 3) console.log("NDN connection closed."); }
+ *   onopen: function () { console.log("NDN connection established."); }
+ *   onclose: function () { console.log("NDN connection closed."); }
  * }
  * 
  */
@@ -21,10 +21,10 @@ var NDN = function NDN(settings) {
     this.transport = new WebSocketTransport();
     this.host = (settings.host !== undefined ? settings.host : 'localhost');
     this.port = (settings.port || 9696);
-    this.readyStatus = NDN.UNOPEN;
+    this.ready_status = NDN.UNOPEN;
     // Event handler
-    this.onopen = (settings.onopen || function() { if (LOG > 3) console.log("NDN connection established."); });
-    this.onclose = (settings.onclose || function() { if (LOG > 3) console.log("NDN connection closed."); });
+    this.onopen = (settings.onopen || function () { console.log("NDN connection established."); });
+    this.onclose = (settings.onclose || function () { console.log("NDN connection closed."); });
 
     this.ccndid = null;
     this.default_key = new Key();
@@ -150,19 +150,15 @@ var CSEntry = function CSEntry(name, closure) {
 
 var getEntryForRegisteredPrefix = function (/* Name */ name) {
     for (var i = 0; i < NDN.CSTable.length; i++) {
-	if (NDN.CSTable[i].name.match(name) != null)
+	if (NDN.CSTable[i].name.isPrefixOf(name) != null)
 	    return NDN.CSTable[i];
     }
     return null;
 };
 
-// Verification status
-NDN.CONTENT = 0; // content verified
-NDN.CONTENT_UNVERIFIED = 1; // content that has not been verified
-NDN.CONTENT_BAD = 2; // verification failed
 
 /**
- * Prototype of 'onData': function (interest, contentObject, verification_status) {}
+ * Prototype of 'onData': function (interest, contentObject) {}
  * Prototype of 'onTimeOut': function (interest) {}
  */
 NDN.prototype.expressInterest = function (name, template, onData, onTimeOut) {
@@ -186,7 +182,7 @@ NDN.prototype.expressInterest = function (name, template, onData, onTimeOut) {
 
     var closure = new DataClosure(onData, onTimeOut);
     var pitEntry = new PITEntry(interest, closure);
-    PITTable.push(pitEntry);
+    NDN.PITTable.push(pitEntry);
 
     if (interest.interestLifetime == null)
 	// Use default timeout value
@@ -197,9 +193,9 @@ NDN.prototype.expressInterest = function (name, template, onData, onTimeOut) {
 		if (LOG > 3) console.log("Interest time out.");
 
 		// Remove PIT entry from PITTable.
-		var index = PITTable.indexOf(pitEntry);
+		var index = NDN.PITTable.indexOf(pitEntry);
 		if (index >= 0)
-		    PITTable.splice(index, 1);
+		    NDN.PITTable.splice(index, 1);
 
 		// Raise timeout callback
 		closure.onTimeout(pitEntry.interest);
@@ -226,7 +222,7 @@ NDN.prototype.registerPrefix = function (prefix, onInterest) {
 	throw new Error('Cannot register prefix without default key');
     }
     
-    var fe = new ForwardingEntry('selfreg', name, null, null, 3, 2147483647);
+    var fe = new ForwardingEntry('selfreg', prefix, null, null, 3, 2147483647);
     var feBytes = fe.encodeToBinary();
     
     var co = new ContentObject(new Name(), feBytes);
@@ -239,7 +235,7 @@ NDN.prototype.registerPrefix = function (prefix, onInterest) {
     
     var closure = new InterestClosure(onInterest);
     var csEntry = new CSEntry(prefix, closure);
-    CSTable.push(csEntry);
+    NDN.CSTable.push(csEntry);
 
     var data = interest.encodeToBinary();
     this.transport.send(data);
@@ -260,9 +256,8 @@ NDN.prototype.onReceivedElement = function(element) {
 
 	if (LOG > 3) console.log('Interest name is ' + interest.name.to_uri());
 				
-	var entry = getEntryForRegisteredPrefix(name);
+	var entry = getEntryForRegisteredPrefix(interest.name);
 	if (entry != null) {
-	    //console.log(entry);
 	    entry.closure.onInterest(interest);
 	}				
     } else if (decoder.peekStartElement(CCNProtocolDTags.ContentObject)) {  // Content packet
@@ -271,14 +266,14 @@ NDN.prototype.onReceivedElement = function(element) {
 
 	if (LOG > 3) console.log('ContentObject name is ' + co.name.to_uri());
 				
-	if (this.ccndid == null && NDN.ccndIdFetcher.match(co.name)) {
+	if (this.ccndid == null && NDN.ccndIdFetcher.isPrefixOf(co.name)) {
 	    // We are in starting phase, record publisherPublicKeyDigest in ccndid
 	    if(!co.signedInfo || !co.signedInfo.publisher 
 	       || !co.signedInfo.publisher.publisherPublicKeyDigest) {
 		console.log("Cannot contact router, close NDN now.");
 						
 		// Close NDN if we fail to connect to a ccn router
-		this.readyStatus = NDN.CLOSED;
+		this.ready_status = NDN.CLOSED;
 		this.transport.close();
 	    } else {
 		if (LOG>3) console.log('Connected to ccnd.');
@@ -286,25 +281,24 @@ NDN.prototype.onReceivedElement = function(element) {
 		if (LOG>3) console.log(ndn.ccndid);
 						
 		// Call NDN.onopen after success
-		this.readyStatus = NDN.OPENED;
+		this.ready_status = NDN.OPENED;
 		this.onopen();
 	    }
 	} else {
 	    var pitEntry = NDN.getEntryForExpressedInterest(co.name);
 	    if (pitEntry != null) {
-		//console.log(pitEntry);
 		// Remove PIT entry from NDN.PITTable
 		var index = NDN.PITTable.indexOf(pitEntry);
 		if (index >= 0)
 		    NDN.PITTable.splice(index, 1);
 						
-		var currentClosure = pitEntry.closure;
+		var cl = pitEntry.closure;
 						
 		// Cancel interest timer
 		clearTimeout(pitEntry.timerID);
 
                 // No signature verification
-		cl.onData(pitEntry.interest, co, NDN.CONTENT_UNVERIFIED);
+		cl.onData(pitEntry.interest, co);
 	    }
 	}
     }

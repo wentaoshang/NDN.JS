@@ -1,83 +1,50 @@
-<?xml version = "1.0" encoding="utf-8" ?>
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
-"DTD/xhtml1-strict.dtd">
-<!-- 
-	See COPYING for copyright and distribution information.
--->
-<html xmlns = "http://www.w3.org/1999/xhtml">
-<meta charset="UTF-8">
-
-
+<!DOCTYPE HTML>
 <head>
-	<title>NDN Put via WebSocket</title>
+    <meta charset="utf-8">
+    <title>NDN publishing test</title>
 	
-	<script type="text/javascript" src="../tools/build/ndn-js.js"></script>	
-	
-	<script type="text/javascript">
-		var ndn = new NDN();
-        ndn.transport.connectWebSocket(ndn);
+    <script type="text/javascript" src="../build/ndn.js"></script>
+
+    <script type="text/javascript">
+
+function testPublish () {
+    var onInterest = function (interest) {
+        console.log('Interest received in callback.');
         
-        ndn.onopen = function() {
-        	document.getElementById("testBtn").disabled = false;
-        };
+        var co = new ContentObject(interest.name, 'NDN.JS needs refactoring.\n');
+        co.sign(mykey);
         
-        var AsyncPutClosure = function AsyncPutClosure() {
-        	// Inherit from Closure.
-			Closure.call(this);
-		};
-		
-		AsyncPutClosure.prototype.upcall = function(kind, upcallInfo) {
-			if (kind == Closure.UPCALL_FINAL) {
-				// Do nothing.
-			} else if (kind == Closure.UPCALL_INTEREST) {
-				console.log('AsyncPutClosure.upcall() called.');
-				var content = document.getElementById('content').value;
-				var interest = upcallInfo.interest;
-				var nameStr = interest.name.getName();
-				
-				var si = new SignedInfo();
-				
-				var co = new ContentObject(new Name(nameStr), si, content, new Signature());
-				co.sign();
-				
-				upcallInfo.contentObject = co;
-				return Closure.RESULT_INTEREST_CONSUMED;
-			}
-			return Closure.RESULT_OK;
-		};
-        
-		
-		function run() {
-			var contentName = document.getElementById('contentname').value;		
-			
-			var result = ndn.registerPrefix(new Name(contentName), new AsyncPutClosure());
-			
-			document.getElementById('result').innerHTML = 'Content name \'' + contentName 
-					+'\' published. Result: ' + result;
-		}
-	
-		</script>
-	
+        try {
+            ndn.send(co);
+        } catch (e) {
+            console.log(e.toString());
+        }
+    };
+
+    var ndn = new NDN();
+    var mykey = ndn.getDefaultKey();
+
+    ndn.onopen = function () {
+        var n = new Name('/wentao.shang/regtest001');
+        ndn.registerPrefix(n, onInterest);
+        console.log('Prefix registered.');
+    };
+
+    
+    ndn.connect();
+    
+    console.log('Started...');
+}
+
+    </script>
+
 </head>
-<body >
-	<form>
-	<div>
-		<p>Please Enter a Content Name:</p>
-		
-		<input id="contentname" type="text" name="CONTENTNAME" value="/wentao.shang/regtest001" /> 
-		
-                <p>Please Enter the Content:</p>
-		
-		<textarea id="content" cols="40" rows="5" name="CONTENT" >This works!</textarea> 
-		
-		<br />
-		</div>
-	</form>
-	<div>
-		<button id="testBtn" onclick="run()" disabled="disabled">Publish Content</button>
-	</div>
-	
-	<p id="result"></p>
+
+<body onload="testPublish()">
+    
+    <div id="result" style="font-family: Monaco">
+    	Check JavaScript console now.
+    </div>
 
 </body>
 </html>

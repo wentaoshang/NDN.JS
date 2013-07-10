@@ -47,7 +47,7 @@ Key.prototype.readDerPublicKey = function (pub_der) {
     var mdHex = md.digest();
     this.publicKeyDigest = DataUtils.toNumbers(mdHex);
     
-    var keyStr = DataUtils.toBase64String(pub_der);
+    var keyStr = DataUtils.toBase64(pub_der);
     var keyPem = "-----BEGIN PUBLIC KEY-----\n";
     for (var i = 0; i < keyStr.length; i += 64)
 	keyPem += (keyStr.substr(i, 64) + "\n");
@@ -89,7 +89,7 @@ Key.prototype.fromPem = function (pub, pri) {
     if (LOG>4) console.log("Key.privateKeyPem: \n" + this.privateKeyPem);
 };
 
-var Key.getSubjectPublicKeyPosFromHex = funtion (hPub) {  
+Key.getSubjectPublicKeyPosFromHex = function (hPub) {  
     var a = ASN1HEX.getPosArrayOfChildren_AtObj(hPub, 0); 
     if (a.length != 2) return -1;
     var pBitString = a[1];
@@ -99,7 +99,7 @@ var Key.getSubjectPublicKeyPosFromHex = funtion (hPub) {
     return pBitStringV + 2;
 };
 
-var Key.readPublicDER = function (pub_der) {
+Key.readPublicDER = function (pub_der) {
     var hex = DataUtils.toHex(pub_der);
     var p = Key.getSubjectPublicKeyPosFromHex(hex);
     var a = ASN1HEX.getPosArrayOfChildren_AtObj(hex, p);
@@ -141,32 +141,24 @@ KeyLocator.prototype.from_ccnb = function (decoder) {
     decoder.readStartElement(this.getElementLabel());
 
     if (decoder.peekStartElement(CCNProtocolDTags.Key)) {
-	try {
-	    encodedKey = decoder.readBinaryElement(CCNProtocolDTags.Key);
+	encodedKey = decoder.readBinaryElement(CCNProtocolDTags.Key);
 	    
-	    this.publicKey = new Key();
-	    this.publicKey.readDerPublicKey(encodedKey);
-	    this.type = KeyLocatorType.KEY;
+	this.publicKey = new Key();
+	this.publicKey.readDerPublicKey(encodedKey);
+	this.type = KeyLocatorType.KEY;
 
-	    if(LOG>4) console.log('Public key in PEM format: '+ this.publicKey.publicToPEM());
-	} catch (e) {
-	    throw new Error("Cannot parse key.");
-	} 
-    } else if ( decoder.peekStartElement(CCNProtocolDTags.Certificate)) {
-	try {
-	    encodedCert = decoder.readBinaryElement(CCNProtocolDTags.Certificate);
+	if(LOG>4) console.log('Public key in PEM format: '+ this.publicKey.publicToPEM());
+    } else if (decoder.peekStartElement(CCNProtocolDTags.Certificate)) {
+	encodedCert = decoder.readBinaryElement(CCNProtocolDTags.Certificate);
 			
-	    /*
-	     * Certificates not yet working
-	     */
+	/*
+	 * Certificates not yet working
+	 */
 			
-	    this.certificate = encodedCert;
-	    this.type = KeyLocatorType.CERTIFICATE;
+	this.certificate = encodedCert;
+	this.type = KeyLocatorType.CERTIFICATE;
 
-	    if(LOG>4) console.log('CERTIFICATE FOUND: '+ this.certificate);
-	} catch ( e) {
-	    throw new Error("Cannot decode certificate.");
-	}
+	if(LOG>4) console.log('CERTIFICATE FOUND: '+ this.certificate);
     } else {
 	this.type = KeyLocatorType.KEYNAME;
 	this.keyName = new KeyName();
@@ -176,7 +168,7 @@ KeyLocator.prototype.from_ccnb = function (decoder) {
 };
 	
 
-KeyLocator.prototype.to_ccnb = function( encoder) {
+KeyLocator.prototype.to_ccnb = function (encoder) {
     if (!this.validate()) {
 	throw new Error("Cannot encode KeyLocator because field values missing.");
     }

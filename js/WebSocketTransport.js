@@ -13,43 +13,42 @@ WebSocketTransport.prototype.connect = function(ndn) {
 	delete this.ws;
     
     this.ws = new WebSocket('ws://' + ndn.host + ':' + ndn.port);
-    if (LOG > 3) console.log('ws connection created.');
+    if (LOG > 3) console.log('WebSocket object created.');
     
     this.ws.binaryType = "arraybuffer";
     
     this.elementReader = new BinaryXmlElementReader(ndn);
     
     var self = this;
-    this.ws.onmessage = function(ev) {
-	var result = ev.data;
+    this.ws.onmessage = function (/*MessageEvent*/ msg) {
+	var result = msg.data;
 				
 	if(result == null || result == undefined || result == "" ) {
-	    console.log('INVALID ANSWER');
+	    console.log('Invalid WebSocket message.');
 	} else if (result instanceof ArrayBuffer) {
 	    var bytearray = new Uint8Array(result);
-	        
-	    if (LOG>3) console.log('BINARY RESPONSE IS ' + DataUtils.toHex(bytearray));
-			
+	    
+	    if (LOG>3) console.log('Binary response is ' + DataUtils.toHex(bytearray));
+	    
             // Find the end of the binary XML element and call ndn.onReceivedElement.
             self.elementReader.onReceivedData(bytearray);
 	}
     };
     
-    this.ws.onopen = function(ev) {
-	if (LOG > 3) console.log(ev);
-	if (LOG > 3) console.log('ws.onopen: WebSocket connection opened.');
-	if (LOG > 3) console.log('ws.onopen: ReadyState: ' + this.readyState);
+    this.ws.onopen = function (ev) {
+	if (LOG > 3) console.log('WebSocket connection opened.');
+	if (LOG > 3) console.log('ReadyState: ' + this.readyState);
 
 	// Fetch ccndid now
 	ndn.fetchCcndId();
     };
 	
-    this.ws.onerror = function(ev) {
-	console.log('ws.onerror: WebSocket error: ' + ev.data);
+    this.ws.onerror = function (ev) {
+	console.log('WebSocket error.');
     };
 	
-    this.ws.onclose = function(ev) {
-	console.log('ws.onclose: WebSocket connection closed.');
+    this.ws.onclose = function (ev) {
+	console.log('WebSocket connection closed: code ' + ev.code);
 	self.ws = null;
 		
 	// Close NDN when WebSocket is closed
@@ -81,6 +80,6 @@ WebSocketTransport.prototype.send = function(data) {
  * Close transport
  */
 WebSocketTransport.prototype.close = function () {
-    delete this.ws;
+    this.ws.close();
     if (LOG > 3) console.log('WebSocket connection closed.');
 };

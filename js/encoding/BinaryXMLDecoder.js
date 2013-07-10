@@ -150,7 +150,7 @@ BinaryXMLDecoder.prototype.peekStartElementAsLong = function() {
 
 BinaryXMLDecoder.prototype.readBinaryElement = function (startTag){
     var blob = null;
-    this.readStartElement(startTag, attributes);
+    this.readStartElement(startTag);
     blob = this.readBlob();
     return blob;
 };

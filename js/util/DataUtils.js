@@ -122,36 +122,24 @@ DataUtils.arraysEqual = function(a1, a2){
     return true;
 };
 
-/*
+/**
  * Convert the big endian Uint8Array to an unsigned int.
- * Don't check for overflow.
  */
-DataUtils.bigEndianToUnsignedInt = function(bytes) {
-    var result = 0;
-    for (var i = 0; i < bytes.length; ++i) {
-        result <<= 8;
-        result += bytes[i];
-    }
-    return result;
+DataUtils.bigEndianToUnsignedInt = function (bytes) {
+    return parseInt(DataUtils.toHex(bytes), 16);
 };
 
-/*
- * Convert the int value to a new big endian Uint8Array and return.
- * If value is 0 or negative, return Uint8Array(0). 
+/**
+ * Convert the int value to a new big endian Uint8Array.
+ * Throw an Error if value is 0 or negative. 
  */
-DataUtils.unsignedIntToBigEndian = function(value) {
-    value = Math.round(value);
-    if (value <= 0)
-        return new Uint8Array(0);
+DataUtils.unsignedIntToBigEndian = function (value) {
+    if (value < 0)
+        throw new Error('Require unsigned int but get negative value: ' + value);
+
+    var hex = Math.round(value).toString(16);
+    if (hex.length % 2 == 1)
+	hex = '0' + hex;
     
-    // Assume value is not over 64 bits.
-    var size = 8;
-    var result = new Uint8Array(size);
-    var i = 0;
-    while (value != 0) {
-        ++i;
-        result[size - i] = value & 0xff;
-        value >>= 8;
-    }
-    return result.subarray(size - i, size);
+    return DataUtils.toNumbers(hex);
 };

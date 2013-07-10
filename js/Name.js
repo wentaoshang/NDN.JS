@@ -45,15 +45,14 @@ Name.prototype.size = function () {
 Name.prototype.add = function (component) {
     var result;
     if (typeof component == 'string')
-        result = DataUtils.stringToUtf8Array(component);
-	else if(typeof component == 'object' && component instanceof Uint8Array)
+        result = Name.stringComponentToBuffer(component);
+    else if(typeof component == 'object' && component instanceof Uint8Array)
         result = new Uint8Array(component);
-	else if(typeof component == 'object' && component instanceof ArrayBuffer) {
+    else if(typeof component == 'object' && component instanceof ArrayBuffer) {
         // Make a copy.  Don't use ArrayBuffer.slice since it isn't always supported.
         result = new Uint8Array(new ArrayBuffer(component.byteLength));
         result.set(new Uint8Array(component));
-    }
-    else if (typeof component == 'object' && component instanceof Name) {
+    } else if (typeof component == 'object' && component instanceof Name) {
         var components;
         if (component == this)
             // special case, when we need to create a copy
@@ -129,7 +128,7 @@ Name.stringComponentToBuffer = function (component) {
 	i++;
 	pos++;
     }
-    return buf.slice(0, pos);
+    return buf.subarray(0, pos);
 };
 
 /** 
@@ -295,7 +294,7 @@ Name.prototype.to_xml = function () {
     for(var i = 0; i < this.components.length; i++) {
 	var blob = this.components[i];
 	if (Name.is_text_encodable(blob))
-	    xml += '<Component ccnbencoding="text">' + blob.toString() + '</Component>';
+	    xml += '<Component ccnbencoding="text">' + DataUtils.toString(blob) + '</Component>';
 	else 
 	    xml += '<Component ccnbencoding="hexBinary">' + DataUtils.toHex(blob).toUpperCase() + '</Component>';
     }

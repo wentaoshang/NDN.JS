@@ -80,7 +80,7 @@ BinaryXMLEncoder.prototype.writeEndElement = function() {
  * If Content is a string, then encode as utf8 and write UDATA.
  */
 BinaryXMLEncoder.prototype.writeElement = function (tag, Content) {
-    this.writeStartElement(tag, attributes);
+    this.writeStartElement(tag);
     // Will omit if 0-length
 	
     if(typeof Content === 'number') {
@@ -162,7 +162,7 @@ BinaryXMLEncoder.prototype.encodeUString = function(
     if(LOG>3) console.log("The string to write is ");
     if(LOG>3) console.log(ustring);
 
-    var strBytes = DataUtils.stringToUtf8Array(ustring);
+    var strBytes = DataUtils.toNumbersFromString(ustring);
 	
     this.encodeTypeAndVal(type, 
 			  (((type == XML_TAG) || (type == XML_ATTR)) ?
