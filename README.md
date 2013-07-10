@@ -13,8 +13,6 @@ NDN.JS is open source under a license described in the file COPYING.  While the 
 does not require it, we really would appreciate it if others would share their
 contributions to the library if they are willing to do so under the same license. 
 
----
-
 This is a young project, with minimal documentation that we are slowly enhancing.  Please
 email Jeff Burke (jburke@remap.ucla.edu) with any questions. 
 
@@ -36,50 +34,52 @@ the's CCNx package: http://ccnx.org/
 JAVASCRIPT API
 --------------
 
-See files in js/  and examples in js/testing, js/examples
+See files in js/  and examples in js/test, js/examples
 
 NDN.JS currently supports expressing Interests (and receiving data) and publishing Data
 (that answers Interests).  This includes encoding and decoding data packets as well as
 signing and verifying them using RSA keys.
 
-** NDN connectivity **
+* NDN connectivity
+
 The only way (for now) to get connectivity to other NDN nodes is via ccnd.  For the
 Javascript API, a Websockets proxy that can communicate the target ccnd is currently
 required.  Code for such a proxy (using Node.js) is in the wsproxy directory.  It
 currently listens on port 9696 and passes messages (using either TCP or UDP) to ccnd on
 the same host. 
 
-** Including the scripts in a web page **
-To use NDN.JS in a web page, one of two scripts must be included using a <script> tag:
+* Including the scripts in a web page
 
-1. ndn-js.js, a combined, compressed library designed for efficient distribution.  It can
-be built using js/tools/build/make-js.sh     This is used in examples/ndn-ping.html
+To use NDN.JS in a web page, one of two scripts must be included using a script tag:
 
-2. Helper.js, which loads each component script independently.  This is used in most of
-the tests in testing/
+1. ndn-js.js, a combined, compressed library designed for efficient distribution. It can
+be built using js/tools/build/make-js.sh. This is used in examples/ndn-ping.html
 
-** Example to retrieve content **
+2. Helper.js, which loads each component script independently. This is used in most of
+the tests in test/
+
+* Example to retrieve content
+
 A simple example of the current API to express an Interest and receive data:
 
-var ndn = new NDN();	// connect to a default hub/proxy
-ndn.transport.connectWebSocket(ndn);
+    var ndn = new NDN();
+    ndn.transport.connectWebSocket(ndn);
         
-var AsyncGetClosure = function AsyncGetClosure() {
-    // Inherit from Closure.
-    Closure.call(this);
-};		
-AsyncGetClosure.prototype.upcall = function(kind, upcallInfo) {
-    if (kind == Closure.UPCALL_CONTENT) {
-        console.log("Received " + upcallInfo.contentObject.name.to_uri());
-        console.log(upcallInfo.contentObject.content);
-    }
-    return Closure.RESULT_OK;
-};
+    var AsyncGetClosure = function AsyncGetClosure() {
+        // Inherit from Closure.
+        Closure.call(this);
+    };
+    AsyncGetClosure.prototype.upcall = function(kind, upcallInfo) {
+        if (kind == Closure.UPCALL_CONTENT) {
+            console.log("Received " + upcallInfo.contentObject.name.to_uri());
+            console.log(upcallInfo.contentObject.content);
+        }
+        return Closure.RESULT_OK;
+    };
+    
+    ndn.expressInterest(new Name("/ndn/ucla.edu/apps/ndn-js-test/hello.txt"), new AsyncGetClosure());
 
-ndn.expressInterest(new Name("/ndn/ucla.edu/apps/ndn-js-test/hello.txt"), new
-AsyncGetClosure());
-
-** Example to publish content **
+* Example to publish content
 
 // Note that publishing content requires knowledge of a 
 // routable prefix for your upstream ccnd.  We are working
@@ -87,4 +87,3 @@ AsyncGetClosure());
 // convention. 
 
 For now, see testing/test-publish-async.html
-
