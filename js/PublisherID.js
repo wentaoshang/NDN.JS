@@ -54,7 +54,13 @@ PublisherID.prototype.to_ccnb = function(encoder) {
 
     encoder.writeElement(this.getElementLabel(), this.id);
 };
-	
+
+PublisherID.prototype.to_xml = function () {
+    var xml = '<' + CCNProtocolDTagsStrings[this.type] + ' ccnbencoding="hexBinary">' 
+    + DataUtils.toHex(this.id).toUpperCase() + '</' + CCNProtocolDTagsStrings[this.type] + '>';
+    return xml;
+};
+
 PublisherID.peek = function(/* XMLDecoder */ decoder) {
     nextTag = decoder.peekStartElementAsLong();
 		

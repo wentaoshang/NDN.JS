@@ -42,7 +42,7 @@ var bits_32 = 0x0FFFFFFFF;
 var CCNB_DECODE_MAX_LEN = 32768;  // Stop decoding if field length is longer than a threshold
 
 var BinaryXMLDecoder = function BinaryXMLDecoder(istream){
-    this.istream = istream;
+    this.istream = istream;  // Uint8Array
     this.offset = 0;
 };
 

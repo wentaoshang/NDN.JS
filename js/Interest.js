@@ -9,24 +9,26 @@ var Interest = function Interest
    (_name, _faceInstance, _minSuffixComponents, _maxSuffixComponents, _publisherPublicKeyDigest, _exclude, 
     _childSelector, _answerOriginKind, _scope, _interestLifetime, _nonce) {
 		
-	this.name = _name;
-	this.faceInstance = _faceInstance;
-	this.maxSuffixComponents = _maxSuffixComponents;
-	this.minSuffixComponents = _minSuffixComponents;
+    this.name = _name;
+    this.faceInstance = _faceInstance;
+    this.maxSuffixComponents = _maxSuffixComponents;
+    this.minSuffixComponents = _minSuffixComponents;
 	
-	this.publisherPublicKeyDigest = _publisherPublicKeyDigest;
-	this.exclude = _exclude;
-	this.childSelector = _childSelector;
-	this.answerOriginKind = _answerOriginKind;
-	this.scope = _scope;
-	this.interestLifetime = _interestLifetime;  // milli seconds
-	this.nonce = _nonce;	
+    this.publisherPublicKeyDigest = _publisherPublicKeyDigest;
+    this.exclude = _exclude;
+    this.childSelector = _childSelector;
+    this.answerOriginKind = _answerOriginKind;
+    this.scope = _scope;
+    this.interestLifetime = _interestLifetime;  // milli seconds
+    this.nonce = _nonce;	
 };
 
 Interest.RECURSIVE_POSTFIX = "*";
 
 Interest.CHILD_SELECTOR_LEFT = 0;
 Interest.CHILD_SELECTOR_RIGHT = 1;
+
+Interest.ANSWER_NO_CONTENT_STORE = 0;
 Interest.ANSWER_CONTENT_STORE = 1;
 Interest.ANSWER_GENERATED = 2;
 Interest.ANSWER_STALE = 4;		// Stale answer OK
@@ -36,84 +38,127 @@ Interest.DEFAULT_ANSWER_ORIGIN_KIND = Interest.ANSWER_CONTENT_STORE | Interest.A
 
 
 Interest.prototype.from_ccnb = function(/*XMLDecoder*/ decoder) {
+    decoder.readStartElement(CCNProtocolDTags.Interest);
 
-		decoder.readStartElement(CCNProtocolDTags.Interest);
+    this.name = new Name();
+    this.name.from_ccnb(decoder);
 
-		this.name = new Name();
-		this.name.from_ccnb(decoder);
+    if (decoder.peekStartElement(CCNProtocolDTags.MinSuffixComponents))
+	this.minSuffixComponents = decoder.readIntegerElement(CCNProtocolDTags.MinSuffixComponents);
 
-		if (decoder.peekStartElement(CCNProtocolDTags.MinSuffixComponents))
-			this.minSuffixComponents = decoder.readIntegerElement(CCNProtocolDTags.MinSuffixComponents);
-
-		if (decoder.peekStartElement(CCNProtocolDTags.MaxSuffixComponents)) 
-			this.maxSuffixComponents = decoder.readIntegerElement(CCNProtocolDTags.MaxSuffixComponents);
+    if (decoder.peekStartElement(CCNProtocolDTags.MaxSuffixComponents)) 
+	this.maxSuffixComponents = decoder.readIntegerElement(CCNProtocolDTags.MaxSuffixComponents);
 			
-		if (decoder.peekStartElement(CCNProtocolDTags.PublisherPublicKeyDigest)) {
-			this.publisherPublicKeyDigest = new PublisherPublicKeyDigest();
-			this.publisherPublicKeyDigest.from_ccnb(decoder);
-		}
+    if (decoder.peekStartElement(CCNProtocolDTags.PublisherPublicKeyDigest)) {
+	this.publisherPublicKeyDigest = new PublisherPublicKeyDigest();
+	this.publisherPublicKeyDigest.from_ccnb(decoder);
+    }
 
-		if (decoder.peekStartElement(CCNProtocolDTags.Exclude)) {
-			this.exclude = new Exclude();
-			this.exclude.from_ccnb(decoder);
-		}
+    if (decoder.peekStartElement(CCNProtocolDTags.Exclude)) {
+	this.exclude = new Exclude();
+	this.exclude.from_ccnb(decoder);
+    }
 		
-		if (decoder.peekStartElement(CCNProtocolDTags.ChildSelector))
-			this.childSelector = decoder.readIntegerElement(CCNProtocolDTags.ChildSelector);
+    if (decoder.peekStartElement(CCNProtocolDTags.ChildSelector))
+	this.childSelector = decoder.readIntegerElement(CCNProtocolDTags.ChildSelector);
 		
-		if (decoder.peekStartElement(CCNProtocolDTags.AnswerOriginKind))
-			this.answerOriginKind = decoder.readIntegerElement(CCNProtocolDTags.AnswerOriginKind);
+    if (decoder.peekStartElement(CCNProtocolDTags.AnswerOriginKind))
+	this.answerOriginKind = decoder.readIntegerElement(CCNProtocolDTags.AnswerOriginKind);
 		
-		if (decoder.peekStartElement(CCNProtocolDTags.Scope))
-			this.scope = decoder.readIntegerElement(CCNProtocolDTags.Scope);
+    if (decoder.peekStartElement(CCNProtocolDTags.Scope))
+	this.scope = decoder.readIntegerElement(CCNProtocolDTags.Scope);
 
-		if (decoder.peekStartElement(CCNProtocolDTags.InterestLifetime))
-			this.interestLifetime = 1000.0 * DataUtils.bigEndianToUnsignedInt
-                (decoder.readBinaryElement(CCNProtocolDTags.InterestLifetime)) / 4096;
+    if (decoder.peekStartElement(CCNProtocolDTags.InterestLifetime))
+	this.interestLifetime = 1000.0 * DataUtils.bigEndianToUnsignedInt
+	    (decoder.readBinaryElement(CCNProtocolDTags.InterestLifetime)) / 4096;
 		
-		if (decoder.peekStartElement(CCNProtocolDTags.Nonce))
-			this.nonce = decoder.readBinaryElement(CCNProtocolDTags.Nonce);
+    if (decoder.peekStartElement(CCNProtocolDTags.Nonce))
+	this.nonce = decoder.readBinaryElement(CCNProtocolDTags.Nonce);
 		
-		decoder.readEndElement();
+    decoder.readEndElement();
 };
 
-Interest.prototype.to_ccnb = function(/*XMLEncoder*/ encoder){
-		//Could check if name is present
-		
-		encoder.writeStartElement(CCNProtocolDTags.Interest);
-		
-		this.name.to_ccnb(encoder);
-	
-		if (null != this.minSuffixComponents) 
-			encoder.writeElement(CCNProtocolDTags.MinSuffixComponents, this.minSuffixComponents);	
+Interest.prototype.to_ccnb = function (/*XMLEncoder*/ encoder) {
+    encoder.writeStartElement(CCNProtocolDTags.Interest);
+    
+    if (null != this.name)
+	this.name.to_ccnb(encoder);
+    
+    if (null != this.minSuffixComponents) 
+	encoder.writeElement(CCNProtocolDTags.MinSuffixComponents, this.minSuffixComponents);	
+    
+    if (null != this.maxSuffixComponents) 
+	encoder.writeElement(CCNProtocolDTags.MaxSuffixComponents, this.maxSuffixComponents);
+    
+    if (null != this.publisherPublicKeyDigest)
+	this.publisherPublicKeyDigest.to_ccnb(encoder);
+    
+    if (null != this.exclude)
+	this.exclude.to_ccnb(encoder);
+    
+    if (null != this.childSelector) 
+	encoder.writeElement(CCNProtocolDTags.ChildSelector, this.childSelector);
+    
+    if (this.DEFAULT_ANSWER_ORIGIN_KIND != this.answerOriginKind && this.answerOriginKind!=null) 
+	encoder.writeElement(CCNProtocolDTags.AnswerOriginKind, this.answerOriginKind);
+    
+    if (null != this.scope) 
+	encoder.writeElement(CCNProtocolDTags.Scope, this.scope);
+    
+    if (null != this.interestLifetime) 
+	encoder.writeElement(CCNProtocolDTags.InterestLifetime, 
+			     DataUtils.unsignedIntToBigEndian((this.interestLifetime / 1000.0) * 4096));
+    
+    if (null != this.nonce)
+	encoder.writeElement(CCNProtocolDTags.Nonce, this.nonce);
+    
+    encoder.writeEndElement();
+};
 
-		if (null != this.maxSuffixComponents) 
-			encoder.writeElement(CCNProtocolDTags.MaxSuffixComponents, this.maxSuffixComponents);
+Interest.prototype.to_xml = function () {
+    var xml = '<Interest>';
 
-		if (null != this.publisherPublicKeyDigest)
-			this.publisherPublicKeyDigest.to_ccnb(encoder);
-		
-		if (null != this.exclude)
-			this.exclude.to_ccnb(encoder);
-		
-		if (null != this.childSelector) 
-			encoder.writeElement(CCNProtocolDTags.ChildSelector, this.childSelector);
+    if (null != this.name)
+	xml += this.name.to_xml();
 
-		if (this.DEFAULT_ANSWER_ORIGIN_KIND != this.answerOriginKind && this.answerOriginKind!=null) 
-			encoder.writeElement(CCNProtocolDTags.AnswerOriginKind, this.answerOriginKind);
-		
-		if (null != this.scope) 
-			encoder.writeElement(CCNProtocolDTags.Scope, this.scope);
-		
-		if (null != this.interestLifetime) 
-			encoder.writeElement(CCNProtocolDTags.InterestLifetime, 
-                DataUtils.nonNegativeIntToBigEndian((this.interestLifetime / 1000.0) * 4096));
-		
-		if (null != this.nonce)
-			encoder.writeElement(CCNProtocolDTags.Nonce, this.nonce);
-		
-		encoder.writeEndElement();
+    if (null != this.minSuffixComponents) 
+	xml += '<MinSuffixComponents>' + this.minSuffixComponents + '</MinSuffixComponents>';
 
+    if (null != this.maxSuffixComponents) 
+	xml += '<MaxSuffixComponents>' + this.maxSuffixComponents + '</MaxSuffixComponents>';
+
+    if (null != this.publisherPublicKeyDigest)
+	xml += this.publisherPublicKeyDigest.to_xml();
+
+    if (null != this.exclude)
+	xml += this.exclude.to_xml(encoding);
+
+    if (null != this.childSelector)
+	xml += '<ChildSelector>' + this.childSelector + '</ChildSelector>';
+
+    if (this.DEFAULT_ANSWER_ORIGIN_KIND != this.answerOriginKind && this.answerOriginKind!=null) 
+	xml += '<AnswerOriginKind>' + this.answerOriginKind + '</AnswerOriginKind>';
+
+    if (null != this.scope) 
+	xml += '<Scope>' + this.scope + '</Scope>';
+
+    if (null != this.interestLifetime)
+	xml += '<InterestLifetime ccnbencoding="' + encoding + 'Binary">' 
+	    + DataUtils.unsignedIntToBigEndian((this.interestLifetime / 1000.0) * 4096).toString(encoding).toUpperCase()
+	    + '</InterestLifetime>';
+    
+    if (null != this.nonce)
+	xml += '<Nonce ccnbencoding="hexBinary">' + DataUtils.toHex(this.nonce).toUpperCase() + '</Nonce>';
+    
+    xml += '</Interest>';
+
+    return xml;
+};
+
+Interest.prototype.encodeToBinary = function () {
+    var enc = new BinaryXMLEncoder();
+    this.to_ccnb(enc);
+    return enc.getReducedOstream();
 };
 
 /*
@@ -143,8 +188,8 @@ Interest.prototype.matches_name = function(/*Name*/ name) {
  * Note: This does NOT make a deep clone of the name, exclue or other objects.
  */
 Interest.prototype.clone = function() {
-    return new Interest
-       (this.name, this.faceInstance, this.minSuffixComponents, this.maxSuffixComponents, 
+    return new Interest(
+	this.name, this.faceInstance, this.minSuffixComponents, this.maxSuffixComponents, 
         this.publisherPublicKeyDigest, this.exclude, this.childSelector, this.answerOriginKind, 
         this.scope, this.interestLifetime, this.nonce);
 };
@@ -154,15 +199,26 @@ Interest.prototype.clone = function() {
  * _values is an array where each element is either Uint8Array component or Exclude.ANY.
  */
 var Exclude = function Exclude(_values) { 
-	this.values = (_values || []);
-}
+    this.values = (_values || []);
+
+    // Check the type of the input
+    for (var i = 0; i < this.values.length; i++) {
+	var component = this.values[i];
+	if (typeof component == 'string')
+	    // Convert string to Buffer
+	    this.values[i] = Name.stringComponentToBuffer(component);
+	else if (!(component instanceof Uint8Array))
+	    // Otherwise it should be a Uint8Array
+	    throw new Error('Unknown type of input component.');
+    }
+};
 
 Exclude.ANY = "*";
 
 Exclude.prototype.from_ccnb = function(/*XMLDecoder*/ decoder) {
-	decoder.readStartElement(CCNProtocolDTags.Exclude);
+    decoder.readStartElement(CCNProtocolDTags.Exclude);
 
-	while (true) {
+    while (true) {
         if (decoder.peekStartElement(CCNProtocolDTags.Component))
             this.values.push(decoder.readBinaryElement(CCNProtocolDTags.Component));
         else if (decoder.peekStartElement(CCNProtocolDTags.Any)) {
@@ -177,16 +233,16 @@ Exclude.prototype.from_ccnb = function(/*XMLDecoder*/ decoder) {
         }
         else
             break;
-	}
+    }
     
     decoder.readEndElement();
 };
 
 Exclude.prototype.to_ccnb = function(/*XMLEncoder*/ encoder)  {
-	if (this.values == null || this.values.length == 0)
-		return;
+    if (this.values == null || this.values.length == 0)
+	return;
 
-	encoder.writeStartElement(CCNProtocolDTags.Exclude);
+    encoder.writeStartElement(CCNProtocolDTags.Exclude);
     
     // TODO: Do we want to order the components (except for ANY)?
     for (var i = 0; i < this.values.length; ++i) {
@@ -198,15 +254,40 @@ Exclude.prototype.to_ccnb = function(/*XMLEncoder*/ encoder)  {
             encoder.writeElement(CCNProtocolDTags.Component, this.values[i]);
     }
 
-	encoder.writeEndElement();
+    encoder.writeEndElement();
+};
+
+Exclude.prototype.to_xml = function () {
+    if (this.values == null || this.values.length == 0)
+	return "";
+    
+    var xml = '<Exclude>';
+    
+    // TODO: Do we want to order the components (except for ANY)?
+    for (var i = 0; i < this.values.length; ++i) {
+        if (this.values[i] == Exclude.ANY) {
+            xml += '<Any></Any>';
+        }
+        else {
+	    var blob = this.values[i];
+	    if (Name.is_text_encodable(blob))
+		xml += '<Component ccnbencoding="text">' + blob.toString() + '</Component>';
+	    else 
+		xml += '<Component ccnbencoding="hexBinary">' + DataUtils.toHex(blob).toUpperCase() + '</Component>';
+	}
+    }
+
+    xml += '</Exclude>';
+
+    return xml;
 };
 
 /*
  * Return a string with elements separated by "," and Exclude.ANY shown as "*". 
  */
 Exclude.prototype.to_uri = function() {
-	if (this.values == null || this.values.length == 0)
-		return "";
+    if (this.values == null || this.values.length == 0)
+	return "";
 
     var result = "";
     for (var i = 0; i < this.values.length; ++i) {
@@ -281,17 +362,5 @@ Exclude.prototype.matches = function(/*Uint8Array*/ component) {
  * A component is less if it is shorter, otherwise if equal length do a byte comparison.
  */
 Exclude.compareComponents = function(/*Uint8Array*/ component1, /*Uint8Array*/ component2) {
-    if (component1.length < component2.length)
-        return -1;
-    if (component1.length > component2.length)
-        return 1;
-    
-    for (var i = 0; i < component1.length; ++i) {
-        if (component1[i] < component2[i])
-            return -1;
-        if (component1[i] > component2[i])
-            return 1;
-    }
-
-    return 0;
+    return Name.compareComponents(component1, component2);
 };

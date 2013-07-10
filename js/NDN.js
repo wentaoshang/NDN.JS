@@ -25,7 +25,43 @@ var NDN = function NDN(settings) {
     // Event handler
     this.onopen = (settings.onopen || function() { if (LOG > 3) console.log("NDN connection established."); });
     this.onclose = (settings.onclose || function() { if (LOG > 3) console.log("NDN connection closed."); });
+
     this.ccndid = null;
+    this.default_key = new Key();
+    this.default_key.fromPem(
+	// Public Key
+	"-----BEGIN PUBLIC KEY-----\n" +
+	"MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDDNpgZFC23yGSLsMo8mzTcmdni\n" +
+	"pkUHI+i8CYagTEqHO+PnejF9Ep/D+MBvEtPXHSgExsDCHP8X7B6If1df58OWXB9G\n" +
+	"PnXUsAsjKKXgOaKoMJr9NZXPqlBbJSrT0h5590hCm2ePPUVkvJKsOX6gCFnptbLz\n" +
+	"F7pvb3zKDc+zXjyHPwIDAQAB\n" +
+	"-----END PUBLIC KEY-----",
+	// Private Key
+	"-----BEGIN RSA PRIVATE KEY-----\n" +
+	"MIICXAIBAAKBgQDDNpgZFC23yGSLsMo8mzTcmdnipkUHI+i8CYagTEqHO+PnejF9\n" +
+	"Ep/D+MBvEtPXHSgExsDCHP8X7B6If1df58OWXB9GPnXUsAsjKKXgOaKoMJr9NZXP\n" +
+	"qlBbJSrT0h5590hCm2ePPUVkvJKsOX6gCFnptbLzF7pvb3zKDc+zXjyHPwIDAQAB\n" +
+	"AoGBALR4BTayI+3SkblekChlaAJFLVxOUGRgeylTOSV6QjAxWulFWvkAvbijf+tv\n" +
+	"oW4uIy//OnZ57g6EmFmiN/mOvo3meBvWijHxUJG1suKrEgG8Gm0LZn0CyycTtutl\n" +
+	"ziSDJ3F4whEZfuqciAFOTTgAXPRHMa/cZbSDo4aGR5mbqE0ZAkEA3+HmB/1SgwMB\n" +
+	"bopCmkh+sslFhtD2xUxlXnlC3ur4rOmjtH7YE0Q2UDsJFj9eg/BA4fQ/orh9usGv\n" +
+	"AVph7o6lswJBAN830Xc7cjxeF3vQyJk1vqqPf15FGvkraq7gHb5MPAtofh78PtzD\n" +
+	"+hyblvWAYBstR/K6up1KG+LP6RXA43q7qkUCQA49540wjzQoV8n5X51C6VRkO1kF\n" +
+	"J/2LC5PD8P4PQnx1bGWKACLRnwbhioVwyIlqGiaFjBrE07KyqXhTkJFFX8MCQAjW\n" +
+	"qfmhpfVT+HQToU3HvgP86Jsv+1Bwcqn3/9WAKUR+X7gUXtzY+bdWRdT0v1l0Iowu\n" +
+	"7qK5w37oop8U4y0B700CQBKRizBt1Nc02UMDzdamQsgnRjuIjlfmryfZpemyx238\n" +
+	"Q0s2+cKlqbfDOUY/CAj/z1M6RaISQ0TawCX9NIGa9GI=\n" +
+	"-----END RSA PRIVATE KEY-----"
+	);
+};
+
+NDN.prototype.setDefaultKey = function (pub, pri) {
+    this.default_key = new Key();
+    this.default_key.fromPem(pub, pri);
+};
+
+NDN.prototype.getDefaultKey = function () {
+    return this.default_key;
 };
 
 NDN.UNOPEN = 0;  // created but not opened yet
@@ -34,11 +70,51 @@ NDN.CLOSED = 2;  // connection to ccnd closed
 
 NDN.ccndIdFetcher = new Name('/%C1.M.S.localhost/%C1.M.SRV/ccnd/KEY');
 
-NDN.prototype.createRoute = function(host, port) {
-    this.host=host;
-    this.port=port;
+// Private callback fired by TcpTransport when TCP connection is established
+NDN.prototype.fetchCcndId = function () {
+    var i = new Interest(NDN.ccndIdFetcher);
+    i.interestLifetime = 1000; // milliseconds
+    this.transport.send(i.encodeToBinary());
 };
 
+// Private callback fired by TcpTransport when TCP connection is closed by remote host
+NDN.prototype.closeByTransport = function () {
+    this.ready_status = NDN.CLOSED;
+    this.onclose();
+};
+
+// Connect NDN wrapper to local ccnd
+NDN.prototype.connect = function () {
+    if (this.ready_status == NDN.OPENED)
+	throw new Error('Cannot connect because connection is already opened.');
+
+    this.transport.connect(this);
+};
+
+// Send packet through NDN wrapper
+NDN.prototype.send = function (packet) {
+    if (this.ready_status != NDN.OPENED)
+	throw new Error('Cannot send because connection is not opened.');
+    
+    if (packet instanceof Uint8Array)
+	this.transport.send(packet);
+    else if (packet instanceof ArrayBuffer) {
+	var bytes = new Uint8Array(packet);
+	this.transport.send(bytes);
+    } else if (packet instanceof Interest || packet instanceof ContentObject)
+	this.transport.send(packet.encodeToBinary());
+    else
+	throw new Error('Cannot send object of type ' + packet.constructor.name);
+};
+
+// Close NDN wrapper
+NDN.prototype.close = function () {
+    if (this.ready_status != NDN.OPENED)
+	throw new Error('Cannot close because connection is not opened.');
+
+    this.ready_status = NDN.CLOSED;
+    this.transport.close();
+};
 
 // For fetching data
 NDN.PITTable = new Array();
@@ -72,7 +148,7 @@ var CSEntry = function CSEntry(name, closure) {
     this.closure = closure;  // Closure
 };
 
-function getEntryForRegisteredPrefix(/* Name */ name) {
+var getEntryForRegisteredPrefix = function (/* Name */ name) {
     for (var i = 0; i < NDN.CSTable.length; i++) {
 	if (NDN.CSTable[i].name.match(name) != null)
 	    return NDN.CSTable[i];
@@ -80,18 +156,20 @@ function getEntryForRegisteredPrefix(/* Name */ name) {
     return null;
 };
 
-/** Encode name as an Interest. If template is not null, use its attributes.
- *  Send the interest to host:port, read the entire response and call
- *  closure.upcall(Closure.UPCALL_CONTENT (or Closure.UPCALL_CONTENT_UNVERIFIED),
- *                 new UpcallInfo(this, interest, 0, contentObject)).                 
+// Verification status
+NDN.CONTENT = 0; // content verified
+NDN.CONTENT_UNVERIFIED = 1; // content that has not been verified
+NDN.CONTENT_BAD = 2; // verification failed
+
+/**
+ * Prototype of 'onData': function (interest, contentObject, verification_status) {}
+ * Prototype of 'onTimeOut': function (interest) {}
  */
-NDN.prototype.expressInterest = function(
-    // Name
-    name,
-    // Closure
-    closure,
-    // Interest
-    template) {
+NDN.prototype.expressInterest = function (name, template, onData, onTimeOut) {
+    if (this.ready_status != NDN.OPENED) {
+	throw new Error('Connection is not established.');
+    }
+    
     var interest = new Interest(name);
     if (template != null) {
 	interest.minSuffixComponents = template.minSuffixComponents;
@@ -106,43 +184,65 @@ NDN.prototype.expressInterest = function(
     else
         interest.interestLifetime = 4000;   // default interest timeout value in milliseconds.
 
-    this.transport.expressInterest(this, interest, closure);
+    var closure = new DataClosure(onData, onTimeOut);
+    var pitEntry = new PITEntry(interest, closure);
+    PITTable.push(pitEntry);
+
+    if (interest.interestLifetime == null)
+	// Use default timeout value
+	interest.interestLifetime = 4000;
+
+    if (interest.interestLifetime > 0) {
+	pitEntry.timerID = setTimeout(function() {
+		if (LOG > 3) console.log("Interest time out.");
+
+		// Remove PIT entry from PITTable.
+		var index = PITTable.indexOf(pitEntry);
+		if (index >= 0)
+		    PITTable.splice(index, 1);
+
+		// Raise timeout callback
+		closure.onTimeout(pitEntry.interest);
+	    }, interest.interestLifetime);  // interestLifetime is in milliseconds.
+	//console.log(closure.timerID);
+    }
+
+    this.transport.send(interest.encodeToBinary());
 };
 
-NDN.prototype.registerPrefix = function(name, closure) {
-    if (this.readyStatus != NDN.OPENED) {
-	console.log('Connection is not established.');
-        return -1;
+/**
+ * Prototype of 'onInterest': function (interest) {}
+ */
+NDN.prototype.registerPrefix = function (prefix, onInterest) {
+    if (this.ready_status != NDN.OPENED) {
+	throw new Error('Connection is not established.');
     }
 
     if (this.ccndid == null) {
-	console.log('ccnd node ID unkonwn. Cannot register prefix.');
-	return -1;
+	throw new Error('ccnd node ID unkonwn. Cannot register prefix.');
     }
-		
-    var fe = new ForwardingEntry('selfreg', name, null, null, 3, 2147483647);
-    var bytes = encodeForwardingEntry(fe);
-		
-    var si = new SignedInfo();
-    si.setFields();
-		
-    var co = new ContentObject(new Name(), si, bytes, new Signature()); 
-    co.sign();
-    var coBinary = encodeToBinaryContentObject(co);
-		
-    var nodename = this.ccndid;
-    var interestName = new Name(['ccnx', nodename, 'selfreg', coBinary]);
 
+    if (this.default_key == null) {
+	throw new Error('Cannot register prefix without default key');
+    }
+    
+    var fe = new ForwardingEntry('selfreg', name, null, null, 3, 2147483647);
+    var feBytes = fe.encodeToBinary();
+    
+    var co = new ContentObject(new Name(), feBytes);
+    co.sign(this.default_key);  // Use default key to sign registration packet
+    var coBinary = co.encodeToBinary();
+
+    var interestName = new Name(['ccnx', this.ccndid, 'selfreg', coBinary]);
     var interest = new Interest(interestName);
     interest.scope = 1;
-    if (LOG > 3) console.log('Send Interest registration packet.');
-    	
-    var csEntry = new CSEntry(name, closure);
-    NDN.CSTable.push(csEntry);
     
-    this.transport.send(encodeToBinaryInterest(interest));
-		
-    return 0;
+    var closure = new InterestClosure(onInterest);
+    var csEntry = new CSEntry(prefix, closure);
+    CSTable.push(csEntry);
+
+    var data = interest.encodeToBinary();
+    this.transport.send(data);
 };
 
 /*
@@ -179,8 +279,7 @@ NDN.prototype.onReceivedElement = function(element) {
 						
 		// Close NDN if we fail to connect to a ccn router
 		this.readyStatus = NDN.CLOSED;
-		this.onclose();
-		//console.log("NDN.onclose event fired.");
+		this.transport.close();
 	    } else {
 		if (LOG>3) console.log('Connected to ccnd.');
 		this.ccndid = co.signedInfo.publisher.publisherPublicKeyDigest;
@@ -189,7 +288,6 @@ NDN.prototype.onReceivedElement = function(element) {
 		// Call NDN.onopen after success
 		this.readyStatus = NDN.OPENED;
 		this.onopen();
-		//console.log("NDN.onopen event fired.");
 	    }
 	} else {
 	    var pitEntry = NDN.getEntryForExpressedInterest(co.name);
@@ -205,27 +303,8 @@ NDN.prototype.onReceivedElement = function(element) {
 		// Cancel interest timer
 		clearTimeout(pitEntry.timerID);
 
-                // Key verification
-		// We only verify the signature when the KeyLocator contains KEY bits
-
-		if (co.signedInfo && co.signedInfo.locator && co.signature && co.signature.signature) {
-		    if (co.signature.Witness != null) {
-			// Bypass verification if Witness is present
-			cl.onData(pitEntry.interest, co, NDN.CONTENT_UNVERIFIED);
-			return;
-		    }
-
-		    var keylocator = co.signedInfo.locator;
-		    if (keylocator.type == KeyLocatorType.KEY) {
-			if (LOG > 3) console.log("Keylocator contains KEY.\n");
-
-			var flag = (co.verify(keylocator.publicKey) == true) ? NDN.CONTENT : NDN.CONTENT_BAD;
-			cl.onData(pitEntry.interest, co, flag);
-		    } else {
-			if (LOG > 3) console.log("KeyLocator does not contain KEY. Leave for user to verify data.");
-			cl.onData(pitEntry.interest, co, NDN.CONTENT_UNVERIFIED);
-		    }
-		}
+                // No signature verification
+		cl.onData(pitEntry.interest, co, NDN.CONTENT_UNVERIFIED);
 	    }
 	}
     }

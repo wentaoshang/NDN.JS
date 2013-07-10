@@ -31,6 +31,14 @@ PublisherPublicKeyDigest.prototype.to_ccnb= function( encoder) {
     if(LOG>4) console.log('PUBLISHER KEY DIGEST IS'+this.publisherPublicKeyDigest);
     encoder.writeElement(this.getElementLabel(), this.publisherPublicKeyDigest);
 };
+
+PublisherPublicKeyDigest.prototype.to_xml = function () {
+    var xml = '<PublisherPublicKeyDigest ccnbencoding="hexBinary">';
+    if (this.publisherPublicKeyDigest != null)
+	xml += DataUtils.toHex(this.publisherPublicKeyDigest).toUpperCase();
+    xml += '</PublisherPublicKeyDigest>';
+    return xml;
+};
 	
 PublisherPublicKeyDigest.prototype.getElementLabel = function() { return CCNProtocolDTags.PublisherPublicKeyDigest; };
 

@@ -1,44 +1,141 @@
 /**
- * @author: Meki Cheraoui, Jeff Thompson
+ * @author: Meki Cheraoui, Jeff Thompson, Wentao Shang
  * See COPYING for copyright and distribution information.
  * This class represents a Name as an array of components where each is a byte array.
  */
  
-/*
+/**
  * Create a new Name from _components.
  * If _components is a string, parse it as a URI.  Otherwise it is an array of components
  * where each is a string, byte array, ArrayBuffer or Uint8Array. 
  * Convert and store as an array of Uint8Array.
  * If a component is a string, encode as utf8.
  */
-var Name = function Name(_components){
-	if( typeof _components == 'string') {		
-		if(LOG>3)console.log('Content Name String '+_components);
-		this.components = Name.createNameArray(_components);
-	}
-	else if(typeof _components === 'object'){		
-		this.components = [];
+var Name = function Name(_components) {
+    if (_components == null)
+	this.components = [];
+    else if (typeof _components == 'string') {
+	this.components = Name.createComponentArray(_components);
+    } else if (typeof _components == 'object') {
+	this.components = [];
         if (_components instanceof Name)
             this.add(_components);
         else {
-            for (var i = 0; i < _components.length; ++i)
+            for (var i = 0; i < _components.length; i++)
                 this.add(_components[i]);
         }
-	}
-	else if(_components==null)
-		this.components =[];
-	else
-		if(LOG>1)console.log("NO CONTENT NAME GIVEN");
+    }
 };
 
-Name.prototype.getName = function() {
-    return this.to_uri();
-};
 
-/* Parse name as a URI and return an array of Uint8Array components.
- *
+/**
+ * Get the number of components in the Name object
  */
-Name.createNameArray = function(name) {
+Name.prototype.size = function () {
+    return this.components.length;
+};
+
+
+/**
+ * component is a string, byte array, ArrayBuffer, Uint8Array or Name.
+ * Convert to Uint8Array and add to this Name.
+ * If a component is a string, encode as utf8.
+ * Return this Name object to allow chaining calls to add.
+ */
+Name.prototype.add = function (component) {
+    var result;
+    if (typeof component == 'string')
+        result = DataUtils.stringToUtf8Array(component);
+	else if(typeof component == 'object' && component instanceof Uint8Array)
+        result = new Uint8Array(component);
+	else if(typeof component == 'object' && component instanceof ArrayBuffer) {
+        // Make a copy.  Don't use ArrayBuffer.slice since it isn't always supported.
+        result = new Uint8Array(new ArrayBuffer(component.byteLength));
+        result.set(new Uint8Array(component));
+    }
+    else if (typeof component == 'object' && component instanceof Name) {
+        var components;
+        if (component == this)
+            // special case, when we need to create a copy
+            components = this.components.slice(0, this.components.length);
+        else
+            components = component.components;
+        
+        for (var i = 0; i < components.length; ++i)
+            this.components.push(new Uint8Array(components[i]));
+        
+	return this;
+    } else 
+	throw new Error("Cannot add Name element at index " + this.components.length + ": invalid type.");
+    
+    this.components.push(result);
+    return this;
+};
+
+
+// Alias for Name.add()
+Name.prototype.append = function (component) {
+    return this.add(component);
+};
+
+Name.prototype.appendVersion = function () {
+    var d = new Date();
+    var time = d.getTime().toString(16);
+
+    if (time.length % 2 == 1)
+	time = '0' + time;
+
+    time = 'fd' + time;
+    var binTime = DataUtils.toNumbers(time);
+    return this.add(binTime);
+};
+
+Name.prototype.appendSegment = function (seg) {
+    if (seg == null || seg == 0)
+	return this.add(new Uint8Array([0]));
+
+    var segStr = seg.toString(16);
+
+    if (segStr.length % 2 == 1)
+	segStr = '0' + segStr;
+
+    segStr = '00' + segStr;
+    return this.add(DataUtils.toNumbers(segStr));
+};
+
+Name.prototype.appendKeyID = function (/*Key*/ key) {
+    var cmd = 'c12e4d2e4b00';  // '%C1.M.K%00'
+    var digest = DataUtils.toHex(key.getKeyID());
+    var keyID = cmd + digest;
+    return this.add(DataUtils.toNumbers(keyID));
+};
+
+
+/**
+ * Convert URI string to Uint8Array. Handles special characters such as '%00' and '%C1'
+ */
+Name.stringComponentToBuffer = function (component) {
+    var buf = new Uint8Array(component.length);  // at least this length
+    var pos = 0;  // # of bytes encoded into the Buffer
+    var i = 0;
+    while (i < component.length) {
+	if (component[i] == '%') {
+	    var hex = component.substr(i+1, 2);
+	    buf[pos] = parseInt(hex, 16);
+	    i += 2;
+	} else
+	    buf[pos] = component.charCodeAt(i);
+
+	i++;
+	pos++;
+    }
+    return buf.slice(0, pos);
+};
+
+/** 
+ * Parse name as a URI and return an array of Uint8Array components
+ */
+Name.createComponentArray = function(name) {
     name = name.trim();
     if (name.length <= 0)
         return [];
@@ -52,7 +149,7 @@ Name.createNameArray = function(name) {
             name = name.substr(iColon + 1, name.length - iColon - 1).trim();
     }
     
-  	if (name[0] == '/') {
+    if (name[0] == '/') {
         if (name.length >= 2 && name[1] == '/') {
             // Strip the authority following "//".
             var iAfterAuthority = name.indexOf('/', 2);
@@ -66,7 +163,7 @@ Name.createNameArray = function(name) {
             name = name.substr(1, name.length - 1).trim();
     }
 
-	var array = name.split('/');
+    var array = name.split('/');
     
     // Unescape the components.
     for (var i = 0; i < array.length; ++i) {
@@ -90,186 +187,45 @@ Name.createNameArray = function(name) {
             array[i] = component;
         
         // Change the component to Uint8Array now.
-        array[i] = DataUtils.toNumbersFromString(array[i]);
+        array[i] = Name.stringComponentToBuffer(array[i]);
     }
 
-	return array;
-}
+    return array;
+};
 
 
-Name.prototype.from_ccnb = function(/*XMLDecoder*/ decoder)  {
-		decoder.readStartElement(this.getElementLabel());
+Name.prototype.from_ccnb = function (decoder) {
+    decoder.readStartElement(this.getElementLabel());
+    
+    this.components = new Array();
 
+    while (decoder.peekStartElement(CCNProtocolDTags.Component)) {
+	this.add(decoder.readBinaryElement(CCNProtocolDTags.Component));
+    }
 		
-		this.components = new Array(); //new ArrayList<byte []>();
-
-		while (decoder.peekStartElement(CCNProtocolDTags.Component)) {
-			this.add(decoder.readBinaryElement(CCNProtocolDTags.Component));
-		}
-		
-		decoder.readEndElement();
+    decoder.readEndElement();
 };
 
-Name.prototype.to_ccnb = function(/*XMLEncoder*/ encoder)  {
-		
-		if( this.components ==null ) 
-			throw new Error("CANNOT ENCODE EMPTY CONTENT NAME");
 
-		encoder.writeStartElement(this.getElementLabel());
-		var count = this.components.length;
-		for (var i=0; i < count; i++) {
-			encoder.writeElement(CCNProtocolDTags.Component, this.components[i]);
-		}
-		encoder.writeEndElement();
+Name.prototype.to_ccnb = function (encoder) {
+    if (this.components == null) 
+	throw new Error("Cannot encode empty name");
+
+    encoder.writeStartElement(this.getElementLabel());
+    var count = this.components.length;
+    for (var i=0; i < count; i++) {
+	encoder.writeElement(CCNProtocolDTags.Component, this.components[i]);
+    }
+    encoder.writeEndElement();
 };
 
-Name.prototype.getElementLabel = function(){
-	return CCNProtocolDTags.Name;
+Name.prototype.encodeToBinary = function () {
+    var enc = new BinaryXMLEncoder();
+    this.to_ccnb(enc);
+    return enc.getReducedOstream();
 };
 
-/*
- * component is a string, byte array, ArrayBuffer, Uint8Array or Name.
- * Convert to Uint8Array and add to this Name.
- * If a component is a string, encode as utf8.
- * Return this Name object to allow chaining calls to add.
- */
-Name.prototype.add = function(component){
-    var result;
-    if(typeof component == 'string')
-        result = DataUtils.stringToUtf8Array(component);
-	else if(typeof component == 'object' && component instanceof Uint8Array)
-        result = new Uint8Array(component);
-	else if(typeof component == 'object' && component instanceof ArrayBuffer) {
-        // Make a copy.  Don't use ArrayBuffer.slice since it isn't always supported.
-        result = new Uint8Array(new ArrayBuffer(component.byteLength));
-        result.set(new Uint8Array(component));
-    }
-    else if (typeof component == 'object' && component instanceof Name) {
-        var components;
-        if (component == this)
-            // special case, when we need to create a copy
-            components = this.components.slice(0, this.components.length);
-        else
-            components = component.components;
-        
-        for (var i = 0; i < components.length; ++i)
-            this.components.push(new Uint8Array(components[i]));
-        return this;
-    }
-	else if(typeof component == 'object')
-        // Assume component is a byte array.  We can't check instanceof Array because
-        //   this doesn't work in JavaScript if the array comes from a different module.
-        result = new Uint8Array(component);
-	else 
-		throw new Error("Cannot add Name element at index " + this.components.length + 
-            ": Invalid type");
-    
-    this.components.push(result);
-	return this;
-};
-
-// Return the escaped name string according to "CCNx URI Scheme".
-Name.prototype.to_uri = function() {	
-    if (this.components.length == 0)
-        return "/";
-    
-	var result = "";
-	
-	for(var i = 0; i < this.components.length; ++i)
-		result += "/"+ Name.toEscapedString(this.components[i]);
-	
-	return result;	
-};
-
-/*
- * Return a new Name with the first nComponents components of this Name.
- */
-Name.prototype.getPrefix = function(nComponents) {
-    return new Name(this.components.slice(0, nComponents));
-}
-
-/*
- * Return a new ArrayBuffer of the component at i.
- */
-Name.prototype.getComponent = function(i) {
-    var result = new ArrayBuffer(this.components[i].length);
-    new Uint8Array(result).set(this.components[i]);
-    return result;
-}
-
-/*
- * The "file name" in a name is the last component that isn't blank and doesn't start with one of the
- *   special marker octets (for version, etc.).  Return the index in this.components of
- *   the file name, or -1 if not found.
- */
-Name.prototype.indexOfFileName = function() {
-    for (var i = this.components.length - 1; i >= 0; --i) {
-        var component = this.components[i];
-        if (component.length <= 0)
-            continue;
-        
-        if (component[0] == 0 || component[0] == 0xC0 || component[0] == 0xC1 || 
-            (component[0] >= 0xF5 && component[0] <= 0xFF))
-            continue;
-        
-        return i;
-    }
-    
-    return -1;
-}
-
-/*
- * Return true if this Name has the same components as name.
- */
-Name.prototype.equalsName = function(name) {
-    if (this.components.length != name.components.length)
-        return false;
-    
-    // Start from the last component because they are more likely to differ.
-    for (var i = this.components.length - 1; i >= 0; --i) {
-        if (!DataUtils.arraysEqual(this.components[i], name.components[i]))
-            return false;
-    }
-    
-    return true;
-}
-
-/*
- * Find the last component in name that has a ContentDigest and return the digest value as Uint8Array, 
- *   or null if not found.  See Name.getComponentContentDigestValue.
- */
-Name.prototype.getContentDigestValue = function() {
-    for (var i = this.components.length - 1; i >= 0; --i) {
-        var digestValue = Name.getComponentContentDigestValue(this.components[i]);
-        if (digestValue != null)
-           return digestValue;
-    }
-    
-    return null;
-}
-
-/*
- * If component is a ContentDigest, return the digest value as a Uint8Array subarray (don't modify!).
- * If not a ContentDigest, return null.
- * A ContentDigest component is Name.ContentDigestPrefix + 32 bytes + Name.ContentDigestSuffix.
- */
-Name.getComponentContentDigestValue = function(component) {
-    var digestComponentLength = Name.ContentDigestPrefix.length + 32 + Name.ContentDigestSuffix.length; 
-    // Check for the correct length and equal ContentDigestPrefix and ContentDigestSuffix.
-    if (component.length == digestComponentLength &&
-        DataUtils.arraysEqual(component.subarray(0, Name.ContentDigestPrefix.length), 
-                              Name.ContentDigestPrefix) &&
-        DataUtils.arraysEqual(component.subarray
-           (component.length - Name.ContentDigestSuffix.length, component.length),
-                              Name.ContentDigestSuffix))
-       return component.subarray(Name.ContentDigestPrefix.length, Name.ContentDigestPrefix.length + 32);
-   else
-       return null;
-}
-
-// Meta GUID "%C1.M.G%C1" + ContentDigest with a 32 byte BLOB. 
-Name.ContentDigestPrefix = new Uint8Array([0xc1, 0x2e, 0x4d, 0x2e, 0x47, 0xc1, 0x01, 0xaa, 0x02, 0x85]);
-Name.ContentDigestSuffix = new Uint8Array([0x00]);
+Name.prototype.getElementLabel = function () { return CCNProtocolDTags.Name; };
 
 /**
  * Return component as an escaped string according to "CCNx URI Scheme".
@@ -284,13 +240,13 @@ Name.toEscapedString = function(component) {
             break;
         }
     }
+
     if (!gotNonDot) {
         // Special case for component of zero or more periods.  Add 3 periods.
         result = "...";
         for (var i = 0; i < component.length; ++i)
             result += ".";
-    }
-    else {
+    } else {
         for (var i = 0; i < component.length; ++i) {
             var value = component[i];
             // Check for 0-9, A-Z, a-z, (+), (-), (.), (_)
@@ -305,19 +261,146 @@ Name.toEscapedString = function(component) {
     return result;
 };
 
-Name.prototype.match = function(/*Name*/ name) {
-	var i_name = this.components;
-	var o_name = name.components;
 
-	// The intrest name is longer than the name we are checking it against.
-	if (i_name.length > o_name.length)
+// Return the escaped name string according to "CCNx URI Scheme".
+Name.prototype.to_uri = function() {	
+    if (this.components.length == 0)
+        return "/";
+    
+    var result = "";
+	
+    for(var i = 0; i < this.components.length; ++i)
+	result += "/"+ Name.toEscapedString(this.components[i]);
+	
+    return result;	
+};
+
+Name.is_text_encodable = function (/*Uint8Array*/ blob) {
+    if (blob.length == 0) return false;
+
+    for (var i = 0; i < blob.length; i++) {
+	var c = blob[i];
+	if (c < 0x20 || c > 0x7E) return false;
+	if (c == 0x3C || c == 0x3E || c == 0x26) return false;
+    }
+    return true;
+};
+
+/**
+ * Return a string of XML representation of the Name object
+ */
+Name.prototype.to_xml = function () {
+    var xml = '<Name>';
+
+    for(var i = 0; i < this.components.length; i++) {
+	var blob = this.components[i];
+	if (Name.is_text_encodable(blob))
+	    xml += '<Component ccnbencoding="text">' + blob.toString() + '</Component>';
+	else 
+	    xml += '<Component ccnbencoding="hexBinary">' + DataUtils.toHex(blob).toUpperCase() + '</Component>';
+    }
+    xml += '</Name>';
+    return xml;
+};
+
+/**
+ * Return a new Name with the first nComponents components of this Name.
+ */
+Name.prototype.getPrefix = function(nComponents) {
+    return new Name(this.components.slice(0, nComponents));
+};
+
+/**
+ * Return a new Name with the suffix starting at the p-th component of this Name.
+ */
+Name.prototype.getSuffix = function (p) {
+    return new Name(this.components.slice(p));
+};
+
+/**
+ * Return a new Uint8Array of the component at i.
+ */
+Name.prototype.getComponent = function(i) {
+    var result = new ArrayBuffer(this.components[i].length);
+    var ret = new Uint8Array(result);
+    ret.set(this.components[i]);
+    return ret;
+};
+
+/**
+ * Return true if this Name has the same components as name.
+ */
+Name.prototype.equals = function (name) {
+    if (this.components.length != name.components.length)
+        return false;
+    
+    // Start from the last component because they are more likely to differ.
+    for (var i = this.components.length - 1; i >= 0; --i) {
+        if (!DataUtils.arraysEqual(this.components[i], name.components[i]))
             return false;
+    }
+    
+    return true;
+};
 
-	// Check if at least one of given components doesn't match.
+
+/**
+ * Returns true if 'this' is a prefix of 'name'
+ */
+Name.prototype.matches = function(name) {
+    var i_name = this.components;
+    var o_name = name.components;
+
+    // The intrest name is longer than the name we are checking it against.
+    if (i_name.length > o_name.length)
+	return false;
+
+    // Check if at least one of given components doesn't match.
     for (var i = 0; i < i_name.length; ++i) {
         if (!DataUtils.arraysEqual(i_name[i], o_name[i]))
             return false;
     }
 
-	return true;
+    return true;
+};
+
+/**
+ * Alias for Name.prototype.matches()
+ * This function name is less confusing.
+ */
+Name.prototype.isPrefixOf = function (name) {
+    return this.matches(name);
+};
+
+
+/**
+ * Compare two name components according to CCNx canonical ordering rule
+ * If comp1 < comp2, return -1
+ * If comp1 = comp2, return 0
+ * If comp1 > comp2, return 1
+ * components can be either string or Buffer objects
+ */
+Name.compareComponents = function (comp1, comp2) {
+    if (typeof comp1 == 'string')
+	comp1 = Name.stringComponentToBuffer(comp1);
+
+    if (typeof comp2 == 'string')
+	comp2 = Name.stringComponentToBuffer(comp2);
+
+    if (!(comp1 instanceof Uint8Array) || !(comp2 instanceof Uint8Array))
+	throw new Error('Cannot compare components of unsupported type.');
+
+    if (comp1.length < comp2.length)
+        return -1;
+    if (comp1.length > comp2.length)
+        return 1;
+    
+    for (var i = 0; i < comp1.length; ++i) {
+        if (comp1[i] < comp2[i])
+            return -1;
+        if (comp1[i] > comp2[i])
+            return 1;
+    }
+
+    return 0;
 };

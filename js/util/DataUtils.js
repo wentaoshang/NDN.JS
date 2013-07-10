@@ -84,7 +84,7 @@ DataUtils.toNumbersFromBase64 = function (s) {
 /**
  * Uint8Array to base64 string
  */
-DataUtils.toBase64String = function (arg) {
+DataUtils.toBase64 = function (arg) {
     var hex = DataUtils.toHex(arg);
     return hex2b64(hex);  // Requires 'securityLib/base64.js'
 };

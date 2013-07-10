@@ -17,8 +17,8 @@ function getSubjectPublicKeyPosFromHex(hPub) {
     return pBitStringV + 2;
 }
 
-function readPublicDER(array) {
-    var hex = DataUtils.toHex(array);
+function readPublicDER(pub_der) {
+    var hex = DataUtils.toHex(pub_der);
     var p = getSubjectPublicKeyPosFromHex(hex);
     var a = ASN1HEX.getPosArrayOfChildren_AtObj(hex, p);
     if (a.length != 2) return null;
@@ -72,17 +72,28 @@ function testSign () {
     //result.innerHTML += "<p>Private Key in PEM: <br />" + formatPEM(key.privateToPEM()) + "</p>";
     //result.innerHTML += "<p>Private Key in HEX: <br />" + DataUtils.toHex(key.privateToDER()) + "</p>";
     
-    var msg = 'abcdefghijklmnopqrstuvwxyz'
-    
+    var n1 = DataUtils.toHex(DataUtils.toNumbersFromString('abcdefghijklmnopqrstuvwxyz'));
+    var n2 = DataUtils.toHex(DataUtils.toNumbersFromString('1234567890'));
+    var n3 = DataUtils.toHex(DataUtils.toNumbersFromString('hello world!'));
     // Sign
     var rsa = new RSAKey();
     rsa.readPrivateKeyFromPEMString(key.privateToPEM());
-    var hSig = rsa.signString(msg, 'sha256');
+    var signer = new KJUR.crypto.Signature({"alg": "SHA256withRSA", "prov": "cryptojs/jsrsa"});
+    signer.initSign(rsa);
+    signer.updateHex(n1);
+    signer.updateHex(n2);
+    signer.updateHex(n3);
+    var hSig = signer.sign();
     result.innerHTML += "<p>Signature is: <br />" + hSig + "</p>";
     
     // Verify
     var rsa2 = readPublicDER(key.publicToDER());
-    var isValid = rsa2.verifyString(msg, hSig);
+    var sig2 = new KJUR.crypto.Signature({"alg": "SHA256withRSA", "prov": "cryptojs/jsrsa"});
+    sig2.initVerifyByPublicKey(rsa2);
+    sig2.updateHex(n1);
+    sig2.updateHex(n2);
+    sig2.updateHex(n3);
+    var isValid = sig2.verify(hSig);
     
     result.innerHTML += "<p>Verification result is " + isValid + "</p>";
 }

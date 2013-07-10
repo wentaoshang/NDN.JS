@@ -89,6 +89,28 @@ Key.prototype.fromPem = function (pub, pri) {
     if (LOG>4) console.log("Key.privateKeyPem: \n" + this.privateKeyPem);
 };
 
+var Key.getSubjectPublicKeyPosFromHex = funtion (hPub) {  
+    var a = ASN1HEX.getPosArrayOfChildren_AtObj(hPub, 0); 
+    if (a.length != 2) return -1;
+    var pBitString = a[1];
+    if (hPub.substring(pBitString, pBitString + 2) != '03') return -1;
+    var pBitStringV = ASN1HEX.getStartPosOfV_AtObj(hPub, pBitString);
+    if (hPub.substring(pBitStringV, pBitStringV + 2) != '00') return -1;
+    return pBitStringV + 2;
+};
+
+var Key.readPublicDER = function (pub_der) {
+    var hex = DataUtils.toHex(pub_der);
+    var p = Key.getSubjectPublicKeyPosFromHex(hex);
+    var a = ASN1HEX.getPosArrayOfChildren_AtObj(hex, p);
+    if (a.length != 2) return null;
+    var hN = ASN1HEX.getHexOfV_AtObj(hex, a[0]);
+    var hE = ASN1HEX.getHexOfV_AtObj(hex, a[1]);
+    var rsaKey = new RSAKey();
+    rsaKey.setPublic(hN, hE);
+    return rsaKey;
+};
+
 /**
  * KeyLocator
  */
@@ -176,6 +198,22 @@ KeyLocator.prototype.to_ccnb = function( encoder) {
     encoder.writeEndElement();	
 };
 
+
+KeyLocator.prototype.to_xml = function () {
+    var xml = '<KeyLocator>';
+
+    if (this.type == KeyLocatorType.KEY) {
+	xml += '<Key ccnbencoding="hexBinary">' + DataUtils.toHex(this.publicKey.publicKeyDer).toUpperCase() + '</Key>';
+    } else if (this.type == KeyLocatorType.CERTIFICATE) {
+	throw new Error("Don't know how to encode certificate into XML.");
+    } else if (this.type == KeyLocatorType.KEYNAME) {
+	xml += this.keyName.to_xml();
+    }
+    xml += '</KeyLocator>';
+    return xml;
+};
+
+
 KeyLocator.prototype.getElementLabel = function() {
     return CCNProtocolDTags.KeyLocator; 
 };
@@ -223,7 +261,19 @@ KeyName.prototype.to_ccnb = function (encoder) {
 
     encoder.writeEndElement();   		
 };
-	
+
+KeyName.prototype.to_xml = function () {
+    var xml = '<KeyName>';
+
+    xml += this.name.to_xml();
+
+    if (this.publisherID != null)
+	xml += this.publisherID.to_xml();
+
+    xml += '</KeyName>';
+    return xml;
+};
+
 KeyName.prototype.getElementLabel = function() { return CCNProtocolDTags.KeyName; };
 
 KeyName.prototype.validate = function() {
