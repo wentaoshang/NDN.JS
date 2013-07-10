@@ -1,21 +1,20 @@
 <!DOCTYPE HTML>
 <head>
-	<meta charset="utf-8">
-	<title>RSA signing test</title>
+    <meta charset="utf-8">
+    <title>RSA signing test</title>
 	
-	<script type="text/javascript" src="../build/ndn.js"></script>
+    <script type="text/javascript" src="../build/ndn.js"></script>
 
-	<script type="text/javascript">
+    <script type="text/javascript">
 
 function getSubjectPublicKeyPosFromHex(hPub) {  
-  var a = ASN1HEX.getPosArrayOfChildren_AtObj(hPub, 0); 
-  if (a.length != 2) return -1;
-  var pBitString = a[1];
-  if (hPub.substring(pBitString, pBitString + 2) != '03') return -1;
-  var pBitStringV = ASN1HEX.getStartPosOfV_AtObj(hPub, pBitString);
-
-  if (hPub.substring(pBitStringV, pBitStringV + 2) != '00') return -1;
-  return pBitStringV + 2;
+    var a = ASN1HEX.getPosArrayOfChildren_AtObj(hPub, 0); 
+    if (a.length != 2) return -1;
+    var pBitString = a[1];
+    if (hPub.substring(pBitString, pBitString + 2) != '03') return -1;
+    var pBitStringV = ASN1HEX.getStartPosOfV_AtObj(hPub, pBitString);
+    if (hPub.substring(pBitStringV, pBitStringV + 2) != '00') return -1;
+    return pBitStringV + 2;
 }
 
 function readPublicDER(array) {
@@ -32,14 +31,14 @@ function readPublicDER(array) {
 
 
 function formatPEM (pem) {
-	return pem.split('\n').join('<br />');
+    return pem.split('\n').join('<br />');
 }
 
 function testSign () {
     var result = document.getElementById('result');
     result.innerHTML = "";
 
-	var pub = 
+    var pub = 
 "-----BEGIN PUBLIC KEY-----\n" +
 "MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDDNpgZFC23yGSLsMo8mzTcmdni\n" +
 "pkUHI+i8CYagTEqHO+PnejF9Ep/D+MBvEtPXHSgExsDCHP8X7B6If1df58OWXB9G\n" +
@@ -47,7 +46,7 @@ function testSign () {
 "F7pvb3zKDc+zXjyHPwIDAQAB\n" +
 "-----END PUBLIC KEY-----";
 
-	var pri = 
+    var pri = 
 "-----BEGIN RSA PRIVATE KEY-----\n" +
 "MIICXAIBAAKBgQDDNpgZFC23yGSLsMo8mzTcmdnipkUHI+i8CYagTEqHO+PnejF9\n" +
 "Ep/D+MBvEtPXHSgExsDCHP8X7B6If1df58OWXB9GPnXUsAsjKKXgOaKoMJr9NZXP\n" +
@@ -88,16 +87,16 @@ function testSign () {
     result.innerHTML += "<p>Verification result is " + isValid + "</p>";
 }
 
-	</script>
+    </script>
 
 </head>
 
 <body >
-	<button onclick="testSign()">Signing and verification</button>
-	
-	<div id="result" style="font-family: Monaco">
-		
-	</div>
+    <button onclick="testSign()">Signing and verification</button>
+    
+    <div id="result" style="font-family: Monaco">
+    	
+    </div>
 
 </body>
 </html>

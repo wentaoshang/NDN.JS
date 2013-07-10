@@ -1,21 +1,21 @@
 <!DOCTYPE HTML>
 <head>
-	<meta charset="utf-8">
-	<title>Key object test</title>
-	
-	<script type="text/javascript" src="../build/ndn.js"></script>
+    <meta charset="utf-8">
+    <title>Key object test</title>
+    
+    <script type="text/javascript" src="../build/ndn.js"></script>
 
-	<script type="text/javascript">
+    <script type="text/javascript">
 
 function formatPEM (pem) {
-	return pem.replace(/\n/g, '<br />');
+    return pem.replace(/\n/g, '<br />');
 }
 
 function testKey () {
     var result = document.getElementById('result');
     result.innerHTML = "";
 
-	var pub = 
+    var pub = 
 "-----BEGIN PUBLIC KEY-----\n" +
 "MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDDNpgZFC23yGSLsMo8mzTcmdni\n" +
 "pkUHI+i8CYagTEqHO+PnejF9Ep/D+MBvEtPXHSgExsDCHP8X7B6If1df58OWXB9G\n" +
@@ -23,7 +23,7 @@ function testKey () {
 "F7pvb3zKDc+zXjyHPwIDAQAB\n" +
 "-----END PUBLIC KEY-----";
 
-	var pri = 
+    var pri = 
 "-----BEGIN RSA PRIVATE KEY-----\n" +
 "MIICXAIBAAKBgQDDNpgZFC23yGSLsMo8mzTcmdnipkUHI+i8CYagTEqHO+PnejF9\n" +
 "Ep/D+MBvEtPXHSgExsDCHP8X7B6If1df58OWXB9GPnXUsAsjKKXgOaKoMJr9NZXP\n" +
@@ -50,16 +50,16 @@ function testKey () {
     result.innerHTML += "<p>Private Key in HEX: <br />" + DataUtils.toHex(key.privateToDER()) + "</p>";
 }
 
-	</script>
+    </script>
 
 </head>
 
 <body >
-	<button onclick="testKey()">Parse key from string</button>
-	
-	<div id="result" style="font-family: Monaco">
-		
-	</div>
+    <button onclick="testKey()">Parse key from string</button>
+    
+    <div id="result" style="font-family: Monaco">
+    	
+    </div>
 
 </body>
 </html>
