@@ -4,48 +4,118 @@
  * This class represents Key Objects
  */
 
-var Key = function Key(){
-    /* TODO: Port from PyCCN:
-	generateRSA()
-	privateToDER()
-	publicToDER()
-	privateToPEM()
-	publicToPEM()
-	fromDER()
-	fromPEM()
-     */
-}
+var Key = function Key () {
+    this.publicKeyDer = null;     // Uint8Array
+    this.publicKeyDigest = null;  // Uint8Array
+    this.publicKeyPem = null;     // String
+    this.privateKeyPem = null;    // String
+};
+
+Key.prototype.publicToDER = function () {
+    return this.publicKeyDer;  // Buffer
+};
+
+Key.prototype.privateToDER = function () {
+    // Remove the '-----XXX-----' from the beginning and the end of the key
+    // and also remove any \n in the key string
+    var lines = this.privateKeyPem.split('\n');
+    priKey = "";
+    for (var i = 1; i < lines.length - 1; i++)
+	priKey += lines[i];
+    return DataUtils.toNumbersFromBase64(priKey);    
+};
+
+Key.prototype.publicToPEM = function () {
+    return this.publicKeyPem;
+};
+
+Key.prototype.privateToPEM = function () {
+    return this.privateKeyPem;
+};
+
+Key.prototype.getKeyID = function () {
+    return this.publicKeyDigest;
+};
+
+Key.prototype.readDerPublicKey = function (pub_der) {
+    if (LOG > 4) console.log("Encode DER public key:\n" + DataUtils.toHex(pub_der));
+
+    this.publicKeyDer = pub_der;
+
+    var md = new KJUR.crypto.MessageDigest({alg: "sha256", prov: "cryptojs"});
+    md.updateHex(DataUtils.toHex(this.publicKeyDer));
+    var mdHex = md.digest();
+    this.publicKeyDigest = DataUtils.toNumbers(mdHex);
+    
+    var keyStr = DataUtils.toBase64String(pub_der);
+    var keyPem = "-----BEGIN PUBLIC KEY-----\n";
+    for (var i = 0; i < keyStr.length; i += 64)
+	keyPem += (keyStr.substr(i, 64) + "\n");
+    keyPem += "-----END PUBLIC KEY-----";
+
+    this.publicKeyPem = keyPem;
+
+    if (LOG > 4) console.log("Convert public key to PEM format:\n" + this.publicKeyPem);
+};
+
+Key.prototype.fromPem = function (pub, pri) {
+    if (pub == null || pri == null) {
+	throw new Error('Cannot create Key object without PEM strings.');
+    }
+
+    // Read public key
+
+    this.publicKeyPem = pub;
+    if (LOG>4) console.log("Key.publicKeyPem: \n" + this.publicKeyPem);
+
+    // Remove the '-----XXX-----' from the beginning and the end of the public key
+    // and also remove any \n in the public key string
+    var lines = pub.split('\n');
+    pub = "";
+    for (var i = 1; i < lines.length - 1; i++)
+	pub += lines[i];
+    this.publicKeyDer = DataUtils.toNumbersFromBase64(pub);
+    if (LOG>4) console.log("Key.publicKeyDer: \n" + DataUtils.toHex(this.publicKeyDer));
+
+    var md = new KJUR.crypto.MessageDigest({alg: "sha256", prov: "cryptojs"});
+    md.updateHex(DataUtils.toHex(this.publicKeyDer));
+    var mdHex = md.digest();
+    this.publicKeyDigest = DataUtils.toNumbers(mdHex);
+    if (LOG>4) console.log("Key.publicKeyDigest: \n" + DataUtils.toHex(this.publicKeyDigest));
+
+    // Read private key
+
+    this.privateKeyPem = pri;
+    if (LOG>4) console.log("Key.privateKeyPem: \n" + this.privateKeyPem);
+};
 
 /**
  * KeyLocator
  */
 var KeyLocatorType = {
-	KEY:1,
-	CERTIFICATE:2,
-	KEYNAME:3
+    KEY:1,
+    CERTIFICATE:2,
+    KEYNAME:3
 };
 
 var KeyLocator = function KeyLocator(_input,_type){ 
-
     this.type = _type;
     
     if (_type == KeyLocatorType.KEYNAME){
     	if (LOG>3) console.log('KeyLocator: SET KEYNAME');
-    	this.keyName = _input;
+    	this.keyName = _input;  // KeyName
     }
     else if (_type == KeyLocatorType.KEY){
     	if (LOG>3) console.log('KeyLocator: SET KEY');
-    	this.publicKey = _input;
+    	this.publicKey = _input;  // Key
     }
     else if (_type == KeyLocatorType.CERTIFICATE){
     	if (LOG>3) console.log('KeyLocator: SET CERTIFICATE');
-    	this.certificate = _input;
+    	this.certificate = _input;  // Uint8Array
     }
-
 };
 
-KeyLocator.prototype.from_ccnb = function(decoder) {
-
+KeyLocator.prototype.from_ccnb = function (decoder) {
 	decoder.readStartElement(this.getElementLabel());
 
 	if (decoder.peekStartElement(CCNProtocolDTags.Key)) {

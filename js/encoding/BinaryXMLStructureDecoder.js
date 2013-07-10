@@ -8,7 +8,7 @@
 
 var BinaryXMLStructureDecoder = function BinaryXMLDecoder() {
     this.gotElementEnd = false;
-	this.offset = 0;
+    this.offset = 0;
     this.level = 0;
     this.state = BinaryXMLStructureDecoder.READ_HEADER_OR_CLOSE;
     this.headerLength = 0;
