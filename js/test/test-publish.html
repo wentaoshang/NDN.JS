@@ -8,10 +8,11 @@
     <script>
 
 function testPublish () {
-    var onInterest = function (interest) {
+    var onInterest = function (inst) {
         console.log('Interest received in callback.');
+        console.log(inst.name.to_uri());
         
-        var co = new ContentObject(interest.name, 'NDN.JS needs refactoring.\n');
+        var co = new ContentObject(inst.name, ('NDN.JS needs refactoring. ' + inst.name.to_uri()));
         co.sign(mykey);
         
         try {
@@ -25,8 +26,12 @@ function testPublish () {
     var mykey = ndn.getDefaultKey();
 
     ndn.onopen = function () {
-        var n = new Name('/wentao.shang/regtest001');
-        ndn.registerPrefix(n, onInterest);
+        var n1 = new Name('/wentao.shang/regtest001');
+        ndn.registerPrefix(n1, onInterest);
+        var n2 = new Name('/wentao.shang/regtest002');
+        ndn.registerPrefix(n2, onInterest);
+        var n3 = new Name('/wentao.shang/regtest003');
+        ndn.registerPrefix(n3, onInterest);
         console.log('Prefix registered.');
     };
 
