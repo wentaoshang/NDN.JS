@@ -13,7 +13,6 @@ function testPublish () {
         console.log(inst.name.to_uri());
         
         var co = new ContentObject(inst.name, ('NDN.JS needs refactoring. ' + inst.name.to_uri()));
-        var keyname = new Name('/wentao.shang/regtest/key').appendKeyID(mykey).appendVersion().appendSegment(0);
         co.sign(mykey, {'keyName':keyname});
         
         try {
@@ -25,6 +24,7 @@ function testPublish () {
 
     var ndn = new NDN();
     var mykey = ndn.getDefaultKey();
+    var keyname = new Name('/wentao.shang/regtest/key').appendKeyID(mykey).appendVersion().appendSegment(0);
 
     ndn.onopen = function () {
         var n1 = new Name('/wentao.shang/regtest001');
