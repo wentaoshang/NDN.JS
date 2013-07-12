@@ -1,0 +1,52 @@
+<!DOCTYPE HTML>
+<head>
+    <meta charset="utf-8">
+    <title>NDN publishing test</title>
+	
+    <script src="../build/ndn.js"></script>
+
+    <script>
+
+function testPublish () {
+    var onInterest = function (inst) {
+        console.log('Interest received in callback.');
+        console.log(inst.name.to_uri());
+        
+        var co = new ContentObject(inst.name, ('NDN.JS needs refactoring. ' + inst.name.to_uri()));
+        var keyname = new Name('/wentao.shang/regtest/key').appendKeyID(mykey).appendVersion().appendSegment(0);
+        co.sign(mykey, {'keyName':keyname});
+        
+        try {
+            ndn.send(co);
+        } catch (e) {
+            console.log(e.toString());
+        }
+    };
+
+    var ndn = new NDN();
+    var mykey = ndn.getDefaultKey();
+
+    ndn.onopen = function () {
+        var n1 = new Name('/wentao.shang/regtest001');
+        ndn.registerPrefix(n1, onInterest);
+        console.log('Prefix registered.');
+    };
+
+    
+    ndn.connect();
+    
+    console.log('Started...');
+}
+
+    </script>
+
+</head>
+
+<body onload="testPublish()">
+    
+    <div id="result" style="font-family: Monaco">
+    	Check JavaScript console now.
+    </div>
+
+</body>
+</html>

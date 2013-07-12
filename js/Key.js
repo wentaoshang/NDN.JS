@@ -125,7 +125,7 @@ var KeyLocator = function KeyLocator(_input,_type){
     
     if (_type == KeyLocatorType.KEYNAME){
     	if (LOG>3) console.log('KeyLocator: SET KEYNAME');
-    	this.keyName = _input;  // KeyName
+    	this.keyName = new KeyName(_input);  // KeyName
     }
     else if (_type == KeyLocatorType.KEY){
     	if (LOG>3) console.log('KeyLocator: SET KEY');
