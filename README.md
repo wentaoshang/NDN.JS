@@ -31,3 +31,4 @@ Changes from the old version
 * Fix bug in PublisherPublicKeyDigest.js. Digest length should be 256 bits since we are using SHA256 digest algorithm.
 * Rewrite all the test cases under js/test/ folder. Use HTML5 style for all the .html files.
 * Update make-js.js building tool. The compressed code is now called ndn.min.js while the uncompressed version is called ndn.js.
+* Remove Helper.js. User should always use ndn.min.js.
