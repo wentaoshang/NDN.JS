@@ -1,45 +1,33 @@
 
 NDN.JS:  A JavaScript development library for Named Data Networking
-==============================================================
+===================================================================
 
-NDN.JS is the first native version of the NDN protocol written in JavaScript. It is wire format compatible with PARC's CCNx.
+This is the refactored NDN.JS library. It is based on the old version of NDN.JS library (see the master branch of https://github.com/named-data/ndn-js). The usage examples can be found in js/test/ folder.
 
-The project is produced by the UCLA NDN team - for more information on NDN, see http://named-data.net/ and http://ndn.ucla.edu/.
-	
-NDN.JS is open source under a license described in the file COPYING. While the license does not require it, we really would appreciate it if others would share their contributions to the library if they are willing to do so under the same license.
+Changes from the old version
+----------------------------
 
-This is a young project, with minimal documentation that we are slowly enhancing. Please email Jeff Burke (jburke@remap.ucla.edu) with any questions. 
-
-The primary goal of NDN.JS is to provide a pure Javascript implementation of the NDN API that enables developers to create browser-based applications using Named Data Networking. The approach requires no native code or signed Java applets, and thus can be delivered over the current web to modern browsers with no hassle for the end user.
-
-Additional goals for the project:
-- Websockets transport (rather than TCP or UDP, which are not directly supported in Javascript).
-- Relatively lightweight and compact, to enable efficient use on the web.
-- Wire format compatible with PARC's CCNx implementation of NDN.
-	
-The library currently requires a remote NDN daemon, and has been tested with ccnd, from CCNx package: http://ccnx.org/
-
-
-JavaScript API
---------------
-
-See files in js/ and examples in js/test.
-
-NDN.JS currently supports expressing Interests (and receiving data) and publishing Data (that answers Interests). This includes encoding and decoding data packets as well as signing and verifying them using RSA keys.
-
-* NDN connectivity
-
-The only way (for now) to get connectivity to other NDN nodes is via ccnd.  For the JavaScript API, a Websockets proxy that can communicate the target ccnd is currently required.  Code for such a proxy (using Node.js) is in the wsproxy directory. It currently listens on port 9696 and passes messages (using either TCP or UDP) to ccnd on the same host. 
-
-* Including the scripts in a web page
-
-To use NDN.JS in a web page, include 'ndn.js' or 'ndn.min.js' using a script tag. 'ndn.min.js' is a combined, compressed library designed for efficient distribution. It can
-be built using js/build/make-js.sh.
-
-* Example to retrieve content
-
-See test/test-fetch.html for a basic example.
-
-* Example to publish content
-
-See test/test-publish.html for a basic example.
+* Cleanup (literally) codebase and fix indentation mess.
+* Update the crypto library to the RSASign 3.1.5 (http://kjur.github.io/jsrsasign/).
+* Remove ContentDecodingException prototype in BinaryXMLDecoder.js and use Error object instead.
+* Remove unnecessary comments, most of which comes from the Python or Java codes that the initial NDN.JS code copies.
+* Cleanup unused and commented (including those 'not working' codes) functions in DataUtils.js and move DataUtils.js from js/encoding/ folder to js/util/ folder.
+* Implement helper functions for Name object, including Name.append(), Name.appendKeyID(), Name.appendVersion(), Name.appendSegment(), Name.isPrefixOf(), Name.size(), Name.getSuffix(), Name.compareComponents(). Remove Name.getName() method and use Name.to_uri() instead.
+* Implement to_xml() methods for all the NDN entities, such as Interest, ContentObject, etc.
+* Implement Interest.encodeToBinary(), ContentObject.encodeToBinary(), ForwardingEntry.encodeToBinary() helpers and remove js/encoding/EncodingUtils.js.
+* Merge KeyManager object into Key object. Implement helper functions for Key object, such as Key.fromPem(), Key.publicToDER(), Key.privateToDER(), Key.getKeyID(), etc.
+* Update KeyName object to make it working with KeyLocator object.
+* Implement ContentObject.verify() and reimplement ContentObject.sign(), which automatically sets the SignedInfo object.
+* Update SignedInfo prototype to allow ContentType to be parsed.
+* Implement ContentObject.parse() as a shortcut to parse a ContentObject from a Uint8Array object.
+* Rewrite js/util/CCNTime.js.
+* Merge WebSocketTransport.expressInterest up to NDN.expressInterest().
+* Split BinaryXMLElementReader into a separate JS file under js/encoding/ folder.
+* Implement NDN.connect(), NDN.send(), NDN.close() helper functions.
+* Add NDN.default_key field, which replaces the 'globalKeyManager' in the old library.
+* Implement NDN.setDefaultKey() and NDN.getDefaultKey() helpers.
+* Remove Closure.js. Use callback-based upcall interface (e.g. onData, onTimeout, onInterest event handlers).
+* Remove signature verification operations from NDN.onReceivedElement handler.
+* Fix bug in PublisherPublicKeyDigest.js. Digest length should be 256 bits since we are using SHA256 digest algorithm.
+* Rewrite all the test cases under js/test/ folder. Use HTML5 style for all the .html files.
+* Update make-js.js building tool. The compressed code is now called ndn.min.js while the uncompressed version is called ndn.js.
