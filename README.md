@@ -2,7 +2,7 @@
 NDN.JS:  A JavaScript development library for Named Data Networking
 ===================================================================
 
-This is the refactored NDN.JS library. It is based on the old version of NDN.JS library (see the master branch of https://github.com/named-data/ndn-js). The usage examples can be found in js/test/ folder.
+This is the refactored NDN.JS library. It is based on the old version of NDN.JS library (see the master branch of https://github.com/named-data/ndn-js). The usage examples can be found in tests/ folder.
 
 Changes from the old version
 ----------------------------
@@ -27,7 +27,7 @@ Changes from the old version
 * Add NDN.default_key field, which replaces the 'globalKeyManager' in the old library.
 * Implement NDN.setDefaultKey() and NDN.getDefaultKey() helpers.
 * Remove Closure.js. Use callback-based upcall interface (e.g. onData, onTimeout, onInterest event handlers).
-* Remove signature verification operations from NDN.onReceivedElement handler.
+* Remove signature verification operations from NDN.onMessage handler.
 * Fix bug in PublisherPublicKeyDigest.js. Digest length should be 256 bits since we are using SHA256 digest algorithm.
 * Rewrite all the test cases under tests/ folder. Use HTML5 style for all the .html files.
 * Update make-js.js building tool. The compressed code is now called ndn.min.js while the uncompressed version is called ndn.js.
