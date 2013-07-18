@@ -100,7 +100,8 @@ def build (bld):
                  "lib/encoding/BinaryXMLDecoder.js",
                  "lib/encoding/BinaryXMLStructureDecoder.js",
                  "lib/encoding/BinaryXMLElementReader.js",
-                 "lib/NDN.js"] + securityLib
+                 "lib/NDN.js",
+                 "lib/IdentityPolicy.js"] + securityLib
 
         ndnjs = bld (features="combine",
                      target="ndn",
