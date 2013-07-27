@@ -8,8 +8,8 @@
     <script>
 
 function testPublish () {
-    var onInterest = function (inst) {
-        console.log('Interest received in callback.');
+    var onInterest1 = function (inst) {
+        console.log('Interest received in callback 1.');
         console.log(inst.name.to_uri());
         
         var co = new ContentObject(inst.name, ('NDN.JS needs refactoring. ' + inst.name.to_uri()));
@@ -22,13 +22,30 @@ function testPublish () {
         }
     };
 
+    var onInterest2 = function (inst) {
+        console.log('Interest received in callback 2.');
+        console.log(inst.name.to_uri());
+        
+        var co = new ContentObject(inst.name, ('NDN.JS needs refactoring. ' + inst.name.to_uri()));
+        co.sign(mykey, {'keyName':keyname});
+        
+        try {
+            ndn.send(co);
+        } catch (e) {
+            console.log(e.toString());
+        }
+    };
+
+
     var ndn = new NDN();
     var mykey = ndn.getDefaultKey();
     var keyname = new Name('/wentao.shang/regtest/key').appendKeyID(mykey).appendVersion().appendSegment(0);
 
     ndn.onopen = function () {
         var n1 = new Name('/wentao.shang/regtest001');
-        ndn.registerPrefix(n1, onInterest);
+        ndn.registerPrefix(n1, onInterest1);
+        var n2 = new Name('/wentao.shang/regtest002');
+        ndn.registerPrefix(n2, onInterest2);
         console.log('Prefix registered.');
     };
 
