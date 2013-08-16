@@ -40,7 +40,12 @@ function testName () {
     var n5 = new Name('/a/b/c/d');
 
     result.innerHTML += "<p>" + n4.to_uri() + ' is a prefix of ' + n5.to_uri() + '? ' + n4.isPrefixOf(n5) + "</p>";
-    
+
+    var str = "/ndn/ucla.edu/bms/melnitz/data/%C1.M.K%00%F7%18%CCiJ%25%02%07%05%9E%E0%B6%E3%FEB%F1S%20%23%89%DD%2A%19%C1%83w%A6%86%B6%F8%DA%DB";
+    var n6 = new Name(str);
+    var uri = n6.to_uri();
+    console.log(str);
+    console.log(uri);
 }
 
     </script>
