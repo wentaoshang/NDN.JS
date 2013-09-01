@@ -22,7 +22,7 @@ function testEncoding () {
     console.log('Decoded name: ' + co2.name.to_uri());
     console.log('Decoded content: ' + ndn.DataUtils.toString(co2.content));
     console.log('Decoded content type: ' + co2.signedInfo.type)
-    //console.log('Content verification passed: ' + co2.verify(h.getDefaultKey()));
+    console.log('Content verification passed: ' + co2.verify(h.getDefaultKey()));
 }
 
     </script>
